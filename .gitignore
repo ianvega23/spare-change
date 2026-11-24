@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Your data and secrets: never commit these
+.env
+.env.*
+config.toml
+profile.toml
+*.pem
+*.key
+teller/
+state/
+ledger.jsonl
+go_live.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
