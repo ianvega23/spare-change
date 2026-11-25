@@ -26,3 +26,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Demo
         run: python -m spare demo
+      - name: Allocator evals (offline gate)
+        run: python -m spare eval

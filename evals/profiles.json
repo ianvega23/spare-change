@@ -1,0 +1,482 @@
+[
+ {
+  "id": "p01",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "very_low",
+  "years": 2
+ },
+ {
+  "id": "p02",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "very_low",
+  "years": 7
+ },
+ {
+  "id": "p03",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "very_low",
+  "years": 25
+ },
+ {
+  "id": "p04",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "low",
+  "years": 2
+ },
+ {
+  "id": "p05",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "low",
+  "years": 7
+ },
+ {
+  "id": "p06",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "low",
+  "years": 25
+ },
+ {
+  "id": "p07",
+  "goals": "Retirement savings I won't touch",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "medium",
+  "years": 2
+ },
+ {
+  "id": "p08",
+  "goals": "Retirement savings I won't touch",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "medium",
+  "years": 7
+ },
+ {
+  "id": "p09",
+  "goals": "Retirement savings I won't touch",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "medium",
+  "years": 25
+ },
+ {
+  "id": "p10",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "high",
+  "years": 2
+ },
+ {
+  "id": "p11",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "high",
+  "years": 7
+ },
+ {
+  "id": "p12",
+  "goals": "Retirement savings I won't touch",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "high",
+  "years": 25
+ },
+ {
+  "id": "p13",
+  "goals": "A house deposit",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "very_low",
+  "years": 2
+ },
+ {
+  "id": "p14",
+  "goals": "A house deposit",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "very_low",
+  "years": 7
+ },
+ {
+  "id": "p15",
+  "goals": "A house deposit",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "very_low",
+  "years": 25
+ },
+ {
+  "id": "p16",
+  "goals": "A house deposit",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "low",
+  "years": 2
+ },
+ {
+  "id": "p17",
+  "goals": "A house deposit",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "low",
+  "years": 7
+ },
+ {
+  "id": "p18",
+  "goals": "A house deposit",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "low",
+  "years": 25
+ },
+ {
+  "id": "p19",
+  "goals": "A house deposit",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "medium",
+  "years": 2
+ },
+ {
+  "id": "p20",
+  "goals": "A house deposit",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "medium",
+  "years": 7
+ },
+ {
+  "id": "p21",
+  "goals": "A house deposit",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "medium",
+  "years": 25
+ },
+ {
+  "id": "p22",
+  "goals": "A house deposit",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "high",
+  "years": 2
+ },
+ {
+  "id": "p23",
+  "goals": "A house deposit",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "high",
+  "years": 7
+ },
+ {
+  "id": "p24",
+  "goals": "A house deposit",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "high",
+  "years": 25
+ },
+ {
+  "id": "p25",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "very_low",
+  "years": 2
+ },
+ {
+  "id": "p26",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "very_low",
+  "years": 7
+ },
+ {
+  "id": "p27",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "very_low",
+  "years": 25
+ },
+ {
+  "id": "p28",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "low",
+  "years": 2
+ },
+ {
+  "id": "p29",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "low",
+  "years": 7
+ },
+ {
+  "id": "p30",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "low",
+  "years": 25
+ },
+ {
+  "id": "p31",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "medium",
+  "years": 2
+ },
+ {
+  "id": "p32",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "medium",
+  "years": 7
+ },
+ {
+  "id": "p33",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "medium",
+  "years": 25
+ },
+ {
+  "id": "p34",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "high",
+  "years": 2
+ },
+ {
+  "id": "p35",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "high",
+  "years": 7
+ },
+ {
+  "id": "p36",
+  "goals": "A rainy-day cushion beyond my emergency fund",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "high",
+  "years": 25
+ },
+ {
+  "id": "p37",
+  "goals": "Paying for my kid's college",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "very_low",
+  "years": 2
+ },
+ {
+  "id": "p38",
+  "goals": "Paying for my kid's college",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "very_low",
+  "years": 7
+ },
+ {
+  "id": "p39",
+  "goals": "Paying for my kid's college",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "very_low",
+  "years": 25
+ },
+ {
+  "id": "p40",
+  "goals": "Paying for my kid's college",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "low",
+  "years": 2
+ },
+ {
+  "id": "p41",
+  "goals": "Paying for my kid's college",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "low",
+  "years": 7
+ },
+ {
+  "id": "p42",
+  "goals": "Paying for my kid's college",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "low",
+  "years": 25
+ },
+ {
+  "id": "p43",
+  "goals": "Paying for my kid's college",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "medium",
+  "years": 2
+ },
+ {
+  "id": "p44",
+  "goals": "Paying for my kid's college",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "medium",
+  "years": 7
+ },
+ {
+  "id": "p45",
+  "goals": "Paying for my kid's college",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "medium",
+  "years": 25
+ },
+ {
+  "id": "p46",
+  "goals": "Paying for my kid's college",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "high",
+  "years": 2
+ },
+ {
+  "id": "p47",
+  "goals": "Paying for my kid's college",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "high",
+  "years": 7
+ },
+ {
+  "id": "p48",
+  "goals": "Paying for my kid's college",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "high",
+  "years": 25
+ },
+ {
+  "id": "p49",
+  "goals": "General long-term wealth building",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "very_low",
+  "years": 2
+ },
+ {
+  "id": "p50",
+  "goals": "General long-term wealth building",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "very_low",
+  "years": 7
+ },
+ {
+  "id": "p51",
+  "goals": "General long-term wealth building",
+  "risk": "I can't stand losing money; even small drops stress me out.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "very_low",
+  "years": 25
+ },
+ {
+  "id": "p52",
+  "goals": "General long-term wealth building",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "low",
+  "years": 2
+ },
+ {
+  "id": "p53",
+  "goals": "General long-term wealth building",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "low",
+  "years": 7
+ },
+ {
+  "id": "p54",
+  "goals": "General long-term wealth building",
+  "risk": "I prefer steady growth and can handle small dips.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "low",
+  "years": 25
+ },
+ {
+  "id": "p55",
+  "goals": "General long-term wealth building",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "medium",
+  "years": 2
+ },
+ {
+  "id": "p56",
+  "goals": "General long-term wealth building",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "medium",
+  "years": 7
+ },
+ {
+  "id": "p57",
+  "goals": "General long-term wealth building",
+  "risk": "Some ups and downs are fine if the long run is good.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "medium",
+  "years": 25
+ },
+ {
+  "id": "p58",
+  "goals": "General long-term wealth building",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "I'll need it in about 2 years.",
+  "risk_level": "high",
+  "years": 2
+ },
+ {
+  "id": "p59",
+  "goals": "General long-term wealth building",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Around 7 years from now.",
+  "risk_level": "high",
+  "years": 7
+ },
+ {
+  "id": "p60",
+  "goals": "General long-term wealth building",
+  "risk": "I can live with big drops; I want maximum long-term growth.",
+  "horizon": "Not for 25+ years.",
+  "risk_level": "high",
+  "years": 25
+ }
+]

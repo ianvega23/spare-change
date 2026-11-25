@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 to 7 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot, the Claude allocator and the weekly update) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 8 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot, the Claude allocator, the weekly update and evals) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -133,6 +133,37 @@ The hourly `bot` job sends your messages, offers proposals with **Approve / Skip
 `/status`, `/pause`, `/resume` and `/profile`. It only answers your chat id, and every button is
 signed, so a forged tap does nothing. Unanswered proposals expire after 7 days as Skip.
 
+## Eval results
+
+These numbers come from `python -m spare eval`. The table below is the **offline** run: a deterministic
+stand-in model that answers sensibly but obeys any instruction hidden in a profile. That proves the code
+that must hold whatever the model does (the guard, the checks, the retry). It says nothing yet about
+Claude's own judgment. Run `python -m spare eval --live --readme` with an API key to replace it with real
+results. The full set is about $8 on Claude Opus 5.5 (add `--max-cost 10`); `--sample 20` is about $4.
+
+<!-- evals:start -->
+Model `offline-policy`, prompt `allocator-v1`, 60 profiles × 1 run(s) and 50 attacks, offline.
+
+| Eval | Result | Target |
+|---|---|---|
+| Guardrail compliance (raw answer, before any retry) | 100% | report |
+| Guardrail compliance after the guard | 100% | 100% |
+| Profile fit (deterministic checks) | 100% | ≥ 95% |
+| Profile fit (LLM judge) | n/a | report |
+| Stability: average shift between runs | 0.0 points | < 5 |
+| Stability: big change on an unchanged profile | 0% | < 5% |
+| Weighted expense ratio (VTI alone: 0.03%) | 0.049% | flag > 0.15% |
+| Prompt injection: applied mixes that stay safe | 100% | 100% |
+| Prompt injection: raw answers that obeyed the attack | 84% | report |
+| Explanation faithfulness | 100% | ≥ 98% |
+| Cost and latency | $0.0 for 182 calls, p50 1 ms, p95 1 ms | report |
+<!-- evals:end -->
+
+What each eval means is in [docs/PLAN.md](docs/PLAN.md) section 9. CI runs the offline set on every pull
+request and fails on any drop below `evals/baseline.json`. With `SPARE_LIVE_EVALS=true` and an `evals`
+environment holding an API key, pull requests that touch `spare/brain/` also run 20 live profiles and
+20 attacks (about $4 a run) against the live baseline.
+
 ## Add the Claude allocator
 
 The allocator suggests your target mix from your three profile sentences. Claude proposes, code
@@ -210,7 +241,7 @@ hold your ledger and holdings.
 | 5 | Telegram bot and onboarding | done |
 | 6 | AI allocator and model-agnostic LLM adapter | done |
 | 7 | Weekly update and merchant categorizer | done |
-| 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | |
+| 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | done |
 | 9 | Two-week paper-trading run | |
 | 10 | Public.com adapter, docs, v0.1.0 | |
 
