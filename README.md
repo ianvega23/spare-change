@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 to 3 of 10 (the money engine, the Alpaca paper adapter and the Teller bank link) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 4 of 10 (money engine, Alpaca paper adapter, Teller bank link and the weekday GitHub Actions job) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -76,6 +76,8 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |
 | `spare/core/broker_alpaca.py` | Alpaca Trading API over stdlib HTTP: cash, clock, assets, notional orders, order list; paper unless explicitly unlocked |
 | `spare/core/bank_teller.py` | Teller over mutual TLS: your checking account's posted purchases, re-link alerts; `bank_plaid.py` is the fallback |
+| `spare/core/state.py` | Files on the `state` branch: ledger, approved targets, pause flag, outbox for the bot |
+| `spare/jobs.py` | `invest`, `status` and `doctor` commands |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
@@ -111,6 +113,24 @@ python -m spare paper-order --dollars 5   # one $5 paper buy of VTI, then finds 
 
 Test orders are tagged `spare-test-`, so the weekly job neither counts them nor flags them as unknown.
 
+## Run it on GitHub Actions
+
+In **your private copy**:
+
+1. **Settings → Environments → New environment `money`**, limited to the `main` branch. Add these secrets:
+   `TELLER_ACCESS_TOKEN`, `TELLER_CERT_PEM`, `TELLER_KEY_PEM` (the contents of the two `.pem` files),
+   `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY` (paper keys).
+2. **Settings → Variables → `SPARE_ENABLED` = `true`**. Without it the workflow does nothing, so the
+   public repo never runs.
+3. Optional: put your `config.toml` on the `state` branch. Without one the job uses the safe defaults:
+   dry run and paper.
+4. Run **Actions → invest → Run workflow** once, then check it with `python -m spare status` and
+   `python -m spare doctor` after `git worktree add state origin/state`.
+
+The `invest` job runs every weekday at 15:00 UTC, collects round-ups, and buys once a week on your
+buy day. It commits only the ledger, run status and outbox to the `state` branch. Pause it any time
+with `{"paused": true}` in `state/flags.json` (the Telegram bot's `/pause` will do this in phase 5).
+
 ## Use your own copy privately
 
 This repository is the public source. To run it with your own accounts, create your **own
@@ -124,7 +144,7 @@ hold your ledger and holdings.
 | 1 | Money engine, ledger, guardrails, demo (no network) | done |
 | 2 | Alpaca adapter (paper) | done |
 | 3 | Teller (Chase) adapter and enrollment | done |
-| 4 | `invest` workflow and state branch | |
+| 4 | `invest` workflow and state branch | done |
 | 5 | Telegram bot and onboarding | |
 | 6 | AI allocator and model-agnostic LLM adapter | |
 | 7 | Weekly update and merchant categorizer | |
