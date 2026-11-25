@@ -14,6 +14,9 @@ above), because each job keeps its own keys.
 > the last step before anyone should trade real money. The defaults are dry run and Alpaca paper
 > trading. See the [roadmap](#roadmap) and the [changelog](CHANGELOG.md).
 
+**New here? Follow the [step-by-step setup guide](docs/SETUP.md).** It takes about 45 minutes from
+nothing to your first dry run, with every click and command written out.
+
 ## Safety design
 
 **Claude proposes, code decides.** The AI never holds bank or broker keys, never places orders,
@@ -228,6 +231,8 @@ from a cache, then simple rules, then Claude Haiku for the rest. Set `send_merch
 keep merchant names off the AI entirely. See [PRIVACY.md](PRIVACY.md).
 
 ## Set it up with the wizard
+
+For the full walkthrough, including creating each account, see [docs/SETUP.md](docs/SETUP.md).
 
 In **your private copy**, with the [GitHub CLI](https://cli.github.com) signed in:
 
