@@ -1,8 +1,9 @@
-"""Round-ups, multiplier, pot, buy trigger and order split. Pure functions, integer cents."""
+"""Round-ups, multiplier, pot, weekly buy and order split. Pure functions, integer cents."""
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from datetime import date
 
 MIN_ORDER_CENTS = 100  # Alpaca's minimum notional order is $1
 
@@ -30,12 +31,20 @@ def roundup_for(txn: Transaction, multiplier: int) -> int:
     return round_up_cents(txn.amount_cents) * multiplier
 
 
-def buy_amount(pot_cents: int, trigger_cents: int, monthly_cap_cents: int,
-               invested_this_month_cents: int) -> int:
-    """How much to buy now. Zero until the pot reaches the trigger; clamped to what's left of the
-    monthly cap. Whatever isn't bought stays in the pot."""
-    if pot_cents < trigger_cents:
-        return 0
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday")
+
+
+def is_buy_day(day: date, buy_weekday: int, last_buy: date | None) -> bool:
+    """Buy once a week: on the buy weekday, or on a later weekday of the same week if the market
+    was closed (a holiday), as long as this week hasn't had a buy yet."""
+    if day.weekday() > 4 or day.weekday() < buy_weekday:
+        return False
+    return last_buy is None or last_buy.isocalendar()[:2] != day.isocalendar()[:2]
+
+
+def buy_amount(pot_cents: int, monthly_cap_cents: int, invested_this_month_cents: int) -> int:
+    """How much to buy on a buy day: the whole pot (this week's round-ups plus anything carried
+    over), clamped to what's left of the monthly cap. Under $1 waits for next week."""
     room = max(0, monthly_cap_cents - invested_this_month_cents)
     amount = min(pot_cents, room)
     return amount if amount >= MIN_ORDER_CENTS else 0

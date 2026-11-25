@@ -1,7 +1,8 @@
 import unittest
+from datetime import date
 
 from spare.core import engine
-from spare.core.engine import Transaction, buy_amount, round_up_cents, split
+from spare.core.engine import Transaction, buy_amount, is_buy_day, round_up_cents, split
 
 TARGETS = {"VTI": 0.35, "VXUS": 0.20, "BND": 0.20, "SGOV": 0.15, "VNQ": 0.10}
 
@@ -29,20 +30,39 @@ class RoundUp(unittest.TestCase):
         self.assertEqual(engine.roundup_for(t, 2), 0)
 
 
-class Trigger(unittest.TestCase):
-    def test_below_trigger_buys_nothing(self):
-        self.assertEqual(buy_amount(4_999, 5_000, 20_000, 0), 0)
+class WeeklyBuy(unittest.TestCase):
+    MON, TUE, FRI, SAT = date(2026, 3, 2), date(2026, 3, 3), date(2026, 3, 6), date(2026, 3, 7)
 
-    def test_at_trigger_buys_whole_pot(self):
-        self.assertEqual(buy_amount(5_000, 5_000, 20_000, 0), 5_000)
-        self.assertEqual(buy_amount(5_437, 5_000, 20_000, 0), 5_437)
+    def test_buys_on_the_buy_day(self):
+        self.assertTrue(is_buy_day(self.MON, 0, None))
+        self.assertTrue(is_buy_day(self.MON, 0, date(2026, 2, 23)))  # last week's buy
+
+    def test_once_a_week(self):
+        self.assertFalse(is_buy_day(self.TUE, 0, self.MON))
+        self.assertFalse(is_buy_day(self.FRI, 0, self.MON))
+        self.assertFalse(is_buy_day(date(2026, 3, 9), 0, date(2026, 3, 9)))
+
+    def test_holiday_rolls_to_next_weekday_same_week(self):
+        self.assertTrue(is_buy_day(self.TUE, 0, date(2026, 2, 23)))
+
+    def test_not_before_buy_day_or_on_weekends(self):
+        self.assertFalse(is_buy_day(self.MON, 4, None))  # buy day is Friday
+        self.assertTrue(is_buy_day(self.FRI, 4, None))
+        self.assertFalse(is_buy_day(self.SAT, 0, None))
+
+    def test_any_amount_is_bought(self):
+        self.assertEqual(buy_amount(137, 20_000, 0), 137)
+        self.assertEqual(buy_amount(5_437, 20_000, 0), 5_437)
+
+    def test_under_one_dollar_waits(self):
+        self.assertEqual(buy_amount(99, 20_000, 0), 0)
 
     def test_clamped_to_monthly_cap(self):
-        self.assertEqual(buy_amount(6_000, 5_000, 20_000, 17_000), 3_000)
+        self.assertEqual(buy_amount(6_000, 20_000, 17_000), 3_000)
 
     def test_cap_reached(self):
-        self.assertEqual(buy_amount(6_000, 5_000, 20_000, 20_000), 0)
-        self.assertEqual(buy_amount(6_000, 5_000, 20_000, 19_950), 0)  # under the $1 minimum
+        self.assertEqual(buy_amount(6_000, 20_000, 20_000), 0)
+        self.assertEqual(buy_amount(6_000, 20_000, 19_950), 0)  # under the $1 minimum
 
 
 class Split(unittest.TestCase):

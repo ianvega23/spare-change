@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from . import guard
+from .engine import WEEKDAYS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ALLOWLIST = REPO_ROOT / "allowlist" / "etfs.toml"
@@ -23,7 +24,7 @@ class Config:
     dry_run: bool = True
     alpaca_env: str = "paper"
     multiplier: int = 1
-    buy_trigger_cents: int = 5_000
+    buy_weekday: int = 0  # 0 = Monday ... 4 = Friday
     monthly_cap_cents: int = guard.DEFAULT_MONTHLY_CAP_CENTS
     limits: guard.Limits = field(default_factory=guard.Limits)
 
@@ -40,7 +41,7 @@ def dollars_to_cents(value, name: str) -> int:
     return int(cents)
 
 
-_TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_trigger", "monthly_cap",
+_TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_day", "monthly_cap",
              "allow_stocks", "limits"}
 _LIMIT_KEYS = {"min_holdings", "max_etf_weight", "max_stock_weight", "max_stocks_total"}
 
@@ -59,6 +60,10 @@ def from_dict(raw: dict) -> Config:
     if alpaca_env not in ("paper", "live"):
         raise ConfigError('alpaca_env must be "paper" or "live"')
 
+    buy_day = raw.get("buy_day", "monday")
+    if not isinstance(buy_day, str) or buy_day.lower() not in WEEKDAYS:
+        raise ConfigError("buy_day must be a weekday name, monday to friday")
+
     limits = guard.Limits(allow_stocks=raw.get("allow_stocks", False),
                           **{k: raw_limits[k] for k in _LIMIT_KEYS if k in raw_limits})
     cfg = Config(
@@ -66,11 +71,11 @@ def from_dict(raw: dict) -> Config:
         dry_run=raw.get("dry_run", True),
         alpaca_env=alpaca_env,
         multiplier=raw.get("multiplier", 1),
-        buy_trigger_cents=dollars_to_cents(raw.get("buy_trigger", 50), "buy_trigger"),
+        buy_weekday=WEEKDAYS.index(buy_day.lower()),
         monthly_cap_cents=dollars_to_cents(raw.get("monthly_cap", 200), "monthly_cap"),
         limits=limits,
     )
-    errors = guard.validate_settings(buy_trigger_cents=cfg.buy_trigger_cents,
+    errors = guard.validate_settings(buy_weekday=cfg.buy_weekday,
                                      multiplier=cfg.multiplier,
                                      monthly_cap_cents=cfg.monthly_cap_cents)
     errors += guard.validate_limits(limits)

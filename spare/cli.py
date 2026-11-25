@@ -21,9 +21,9 @@ def usd(cents: int) -> str:
     return f"${cents / 100:,.2f}"
 
 
-def demo(weeks: int, multiplier: int, trigger: int, seed: int, ledger_path: str | None,
+def demo(weeks: int, multiplier: int, buy_day: str, seed: int, ledger_path: str | None,
          out=print) -> Ledger:
-    cfg = config_mod.from_dict({"dry_run": False, "multiplier": multiplier, "buy_trigger": trigger})
+    cfg = config_mod.from_dict({"dry_run": False, "multiplier": multiplier, "buy_day": buy_day})
     universe = config_mod.load_universe()
     start = date(2026, 1, 5)  # a Monday
     days = weeks * 7
@@ -34,7 +34,7 @@ def demo(weeks: int, multiplier: int, trigger: int, seed: int, ledger_path: str 
     ledger = Ledger(ledger_path)
 
     out(f"Spare Change demo: {weeks} weeks, fake bank and broker, {multiplier}x round-ups, "
-        f"buy at {usd(cfg.buy_trigger_cents)}, cap {usd(cfg.monthly_cap_cents)}/month.")
+        f"weekly buy on {buy_day.capitalize()}s, cap {usd(cfg.monthly_cap_cents)}/month.")
     out("Example allocation (not advice): "
         + ", ".join(f"{s} {w:.0%}" for s, w in DEMO_TARGETS.items()) + "\n")
     week_roundups = 0
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("demo", help="simulate weeks of round-ups and buys with fake accounts")
     p.add_argument("--weeks", type=int, default=12)
     p.add_argument("--multiplier", type=int, default=1, choices=(1, 2, 3))
-    p.add_argument("--trigger", type=int, default=50, help="buy trigger in dollars")
+    p.add_argument("--buy-day", default="monday", help="weekday to invest the week's round-ups")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--ledger", default=None, help="ledger path (default: a temp file)")
     for name in LATER:
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "demo":
         try:
-            demo(args.weeks, args.multiplier, args.trigger, args.seed, args.ledger)
+            demo(args.weeks, args.multiplier, args.buy_day, args.seed, args.ledger)
         except config_mod.ConfigError as e:
             parser.error(str(e))
         return 0

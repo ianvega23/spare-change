@@ -6,7 +6,7 @@ dry_run = true          # true = plan buys and print them, place no orders
 alpaca_env = "paper"    # "paper" or "live" (live also needs a passed paper checklist)
 
 multiplier = 1          # round-up multiplier: 1, 2 or 3
-buy_trigger = 50        # buy when the pot reaches this many dollars ($10 to $500)
+buy_day = "monday"      # invest the week's round-ups once a week, on this weekday
 monthly_cap = 200       # most dollars invested per calendar month
 
 allow_stocks = false    # true = individual S&P 500 stocks may be proposed

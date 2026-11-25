@@ -79,6 +79,10 @@ class Ledger:
             out[e["symbol"]] = out.get(e["symbol"], 0) + e["notional_cents"]
         return out
 
+    def last_buy_date(self) -> str | None:
+        buys = self.of_type("buy")
+        return max(e["date"] for e in buys) if buys else None
+
     def last_batch_id(self) -> str:
         buys = self.of_type("buy")
         return buys[-1]["batch_id"] if buys else ""

@@ -12,7 +12,7 @@ class ConfigTests(TempDirCase):
         cfg = from_dict({})
         self.assertTrue(cfg.dry_run)
         self.assertEqual(cfg.alpaca_env, "paper")
-        self.assertEqual(cfg.buy_trigger_cents, 5_000)
+        self.assertEqual(cfg.buy_weekday, 0)  # Monday
         self.assertEqual(cfg.monthly_cap_cents, 20_000)
         self.assertEqual(cfg.multiplier, 1)
         self.assertFalse(cfg.limits.allow_stocks)
@@ -22,13 +22,18 @@ class ConfigTests(TempDirCase):
         self.assertTrue(cfg.dry_run)
 
     def test_dollars_to_cents(self):
-        self.assertEqual(from_dict({"buy_trigger": 12.34, "monthly_cap": 200}).buy_trigger_cents, 1_234)
+        self.assertEqual(from_dict({"monthly_cap": 123.45}).monthly_cap_cents, 12_345)
         with self.assertRaises(ConfigError):
-            from_dict({"buy_trigger": 12.345})
+            from_dict({"monthly_cap": 12.345})
+
+    def test_buy_day(self):
+        self.assertEqual(from_dict({"buy_day": "Friday"}).buy_weekday, 4)
+        for bad in ("saturday", "sunday", "someday", 1):
+            with self.subTest(bad=bad), self.assertRaises(ConfigError):
+                from_dict({"buy_day": bad})
 
     def test_rejects_invalid(self):
-        for raw in ({"multiplier": 4}, {"buy_trigger": 5}, {"buy_trigger": 600, "monthly_cap": 1000},
-                    {"monthly_cap": 20}, {"alpaca_env": "prod"}, {"dry_run": "no"},
+        for raw in ({"multiplier": 4}, {"buy_trigger": 50}, {"monthly_cap": 0.5}, {"alpaca_env": "prod"}, {"dry_run": "no"},
                     {"surprise": 1}, {"limits": {"max_etf_weight": 0.5}},
                     {"limits": {"min_holdings": 3}}, {"limits": {"bogus": 1}}):
             with self.subTest(raw=raw), self.assertRaises(ConfigError):

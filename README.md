@@ -1,8 +1,8 @@
 # Spare Change
 
 A free, open-source, self-hosted round-up investor. It rounds each card purchase up to the
-next dollar, saves the spare change, and when the pot reaches $50 it buys fractional shares
-of a diversified portfolio in your own brokerage account. An AI allocator suggests the mix from
+next dollar, saves the spare change, and once a week it invests that week's total in fractional
+shares of a diversified portfolio in your own brokerage account. An AI allocator suggests the mix from
 the goals you describe in your own words, and plain code decides whether that suggestion is allowed.
 
 It is built for developers who are comfortable with API keys and GitHub secrets. There is no
@@ -33,7 +33,7 @@ and never sees your transactions when it picks an allocation.
   | Big change (needs your Approve in Telegram) | adding or removing a holding, or a bigger shift |
   | Selling | blocked in v1; rebalancing uses new money only |
   | Monthly cap | $200 invested per calendar month |
-  | Buy trigger | $50 pot (allowed range $10 to $500) |
+  | When to buy | once a week, on your chosen weekday, whatever the amount (under $1 carries over) |
   | Round-up multiplier | 1x, 2x or 3x |
 
   Your config can tighten these limits but can't loosen them.
@@ -56,20 +56,21 @@ python -m unittest discover -s tests    # the test suite, offline, a few seconds
 ```
 
 The demo shows each weekday run: round-ups going into the pot, and a split buy across the
-example portfolio each time the pot passes $50:
+example portfolio every Monday:
 
 ```text
-Week  4: +$13.29 round-ups, pot $41.96
-Week  5: +$7.88 round-ups, pot $49.84
-  2026-02-09  BUY $54.73: VTI $19.15, VXUS $10.95, BND $10.95, SGOV $8.21, VNQ $5.47
-Week  6: +$9.71 round-ups, pot $4.82
+  2026-01-12  BUY $7.77: VTI $2.82, VXUS $1.80, BND $1.80, SGOV $1.35
+Week  2: +$9.57 round-ups, pot $6.48
+  2026-01-19  BUY $12.24: VTI $3.38, VXUS $2.45, BND $2.45, SGOV $1.84, VNQ $2.12
+Week  3: +$13.19 round-ups, pot $7.43
+  2026-01-26  BUY $12.70: VTI $4.45, VXUS $2.54, BND $2.54, SGOV $1.90, VNQ $1.27
 ```
 
 ## How the code is laid out
 
 | Path | What it does |
 |---|---|
-| `spare/core/engine.py` | Round-ups in integer cents, multiplier, $50 trigger, monthly cap, split with a $1 minimum per order |
+| `spare/core/engine.py` | Round-ups in integer cents, multiplier, weekly buy day, monthly cap, split with a $1 minimum per order |
 | `spare/core/guard.py` | Every guardrail as a pure function: allowlist, caps, weights, small vs big change, no sells |
 | `spare/core/ledger.py` | Append-only JSONL ledger; pot, holdings and seen transactions are derived from it |
 | `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |

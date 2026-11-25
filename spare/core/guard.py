@@ -18,7 +18,6 @@ HARD_MAX_STOCKS_TOTAL = 0.30
 SMALL_CHANGE_MAX_SHIFT = 0.10
 AUTO_CHANGE_MIN_INTERVAL = timedelta(days=7)
 SUM_TOLERANCE = 0.001
-BUY_TRIGGER_RANGE_CENTS = (1_000, 50_000)
 ALLOWED_MULTIPLIERS = (1, 2, 3)
 DEFAULT_MONTHLY_CAP_CENTS = 20_000
 
@@ -53,17 +52,14 @@ def validate_limits(limits: Limits) -> list[str]:
     return errors
 
 
-def validate_settings(*, buy_trigger_cents: int, multiplier: int, monthly_cap_cents: int) -> list[str]:
+def validate_settings(*, buy_weekday: int, multiplier: int, monthly_cap_cents: int) -> list[str]:
     errors = []
-    lo, hi = BUY_TRIGGER_RANGE_CENTS
-    if not isinstance(buy_trigger_cents, int) or not lo <= buy_trigger_cents <= hi:
-        errors.append(f"buy trigger must be between ${lo // 100} and ${hi // 100}")
-    if multiplier not in ALLOWED_MULTIPLIERS:
+    if not isinstance(buy_weekday, int) or isinstance(buy_weekday, bool) or not 0 <= buy_weekday <= 4:
+        errors.append("buy day must be a weekday, Monday to Friday")
+    if multiplier not in ALLOWED_MULTIPLIERS or isinstance(multiplier, bool):
         errors.append("multiplier must be 1, 2 or 3")
     if not isinstance(monthly_cap_cents, int) or monthly_cap_cents < MIN_ORDER_CENTS:
         errors.append("monthly cap must be at least $1")
-    elif isinstance(buy_trigger_cents, int) and monthly_cap_cents < buy_trigger_cents:
-        errors.append("monthly cap must be at least the buy trigger")
     return errors
 
 

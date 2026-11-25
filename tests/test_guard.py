@@ -105,14 +105,14 @@ class Classify(unittest.TestCase):
 
 class Settings(unittest.TestCase):
     def check(self, **kw):
-        base = dict(buy_trigger_cents=5_000, multiplier=1, monthly_cap_cents=20_000)
+        base = dict(buy_weekday=0, multiplier=1, monthly_cap_cents=20_000)
         return guard.validate_settings(**{**base, **kw})
 
-    def test_trigger_range(self):
-        self.assertEqual(self.check(buy_trigger_cents=1_000), [])
-        self.assertEqual(self.check(buy_trigger_cents=50_000, monthly_cap_cents=50_000), [])
-        self.assertTrue(self.check(buy_trigger_cents=999))
-        self.assertTrue(self.check(buy_trigger_cents=50_001, monthly_cap_cents=60_000))
+    def test_buy_day_is_a_weekday(self):
+        for d in range(5):
+            self.assertEqual(self.check(buy_weekday=d), [])
+        for d in (-1, 5, 6, True, "monday"):
+            self.assertTrue(self.check(buy_weekday=d), d)
 
     def test_multiplier(self):
         for m in (1, 2, 3):
@@ -120,8 +120,9 @@ class Settings(unittest.TestCase):
         for m in (0, 4, 1.5, -1):
             self.assertTrue(self.check(multiplier=m))
 
-    def test_cap_at_least_trigger(self):
-        self.assertTrue(self.check(monthly_cap_cents=4_999))
+    def test_monthly_cap_minimum(self):
+        self.assertEqual(self.check(monthly_cap_cents=100), [])
+        self.assertTrue(self.check(monthly_cap_cents=99))
 
     def test_limits_can_tighten_not_loosen(self):
         self.assertEqual(guard.validate_limits(Limits(min_holdings=6, max_etf_weight=0.30)), [])
