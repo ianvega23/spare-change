@@ -1,0 +1,18 @@
+# Copy to config.toml (git-ignored) and edit. Dollar amounts are in US dollars.
+# Limits here can only make the guardrails stricter, never looser.
+
+enabled = true          # false = kill switch: every run logs and exits
+dry_run = true          # true = plan buys and print them, place no orders
+alpaca_env = "paper"    # "paper" or "live" (live also needs a passed paper checklist)
+
+multiplier = 1          # round-up multiplier: 1, 2 or 3
+buy_day = "monday"      # invest the week's round-ups once a week, on this weekday
+monthly_cap = 200       # most dollars invested per calendar month
+
+allow_stocks = false    # true = individual S&P 500 stocks may be proposed
+
+[limits]                # optional; each value may only be stricter than the default
+# min_holdings = 5
+# max_etf_weight = 0.35
+# max_stock_weight = 0.10
+# max_stocks_total = 0.30

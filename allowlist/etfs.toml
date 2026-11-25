@@ -1,0 +1,78 @@
+# Default ETF universe for the allocator. A placeholder to show how the software works,
+# not advice. Expense ratios are approximate: check the fund's own page before relying on them.
+# Each fund is also checked live as tradable and fractionable on Alpaca before any buy.
+
+[VTI]
+asset_class = "us_equity"
+expense_ratio = 0.0003
+description = "US total stock market"
+
+[VOO]
+asset_class = "us_equity"
+expense_ratio = 0.0003
+description = "S&P 500"
+
+[VUG]
+asset_class = "us_equity"
+expense_ratio = 0.0004
+description = "US large-cap growth"
+
+[VTV]
+asset_class = "us_equity"
+expense_ratio = 0.0004
+description = "US large-cap value"
+
+[VB]
+asset_class = "us_equity"
+expense_ratio = 0.0005
+description = "US small-cap"
+
+[SCHD]
+asset_class = "us_equity"
+expense_ratio = 0.0006
+description = "US dividend stocks"
+
+[VEA]
+asset_class = "intl_equity"
+expense_ratio = 0.0005
+description = "International developed markets"
+
+[VXUS]
+asset_class = "intl_equity"
+expense_ratio = 0.0005
+description = "Total international stock market"
+
+[VWO]
+asset_class = "intl_equity"
+expense_ratio = 0.0007
+description = "Emerging markets"
+
+[VNQ]
+asset_class = "real_estate"
+expense_ratio = 0.0013
+description = "US real estate investment trusts"
+
+[BND]
+asset_class = "bond"
+expense_ratio = 0.0003
+description = "US total bond market"
+
+[BNDX]
+asset_class = "bond"
+expense_ratio = 0.0007
+description = "International bonds, dollar-hedged"
+
+[VTIP]
+asset_class = "bond"
+expense_ratio = 0.0004
+description = "Short-term inflation-protected Treasuries (TIPS)"
+
+[SGOV]
+asset_class = "cash_like"
+expense_ratio = 0.0009
+description = "0-3 month US Treasury bills"
+
+[GLDM]
+asset_class = "commodity"
+expense_ratio = 0.0010
+description = "Physical gold"

@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** early development. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phase 1 of 10 (the money engine) is built and tested offline. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -56,7 +56,30 @@ python -m unittest discover -s tests    # the test suite, offline, a few seconds
 ```
 
 The demo shows each weekday run: round-ups going into the pot, and a split buy across the
-example portfolio every Monday.
+example portfolio every Monday:
+
+```text
+  2026-01-12  BUY $7.77: VTI $2.82, VXUS $1.80, BND $1.80, SGOV $1.35
+Week  2: +$9.57 round-ups, pot $6.48
+  2026-01-19  BUY $12.24: VTI $3.38, VXUS $2.45, BND $2.45, SGOV $1.84, VNQ $2.12
+Week  3: +$13.19 round-ups, pot $7.43
+  2026-01-26  BUY $12.70: VTI $4.45, VXUS $2.54, BND $2.54, SGOV $1.90, VNQ $1.27
+```
+
+## How the code is laid out
+
+| Path | What it does |
+|---|---|
+| `spare/core/engine.py` | Round-ups in integer cents, multiplier, weekly buy day, monthly cap, split with a $1 minimum per order |
+| `spare/core/guard.py` | Every guardrail as a pure function: allowlist, caps, weights, small vs big change, no sells |
+| `spare/core/ledger.py` | Append-only JSONL ledger; pot, holdings and seen transactions are derived from it |
+| `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |
+| `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
+| `spare/fake.py` | Fake bank and broker for tests and the demo |
+| `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
+
+`spare/core` uses only the Python standard library and never imports the AI or bot code. Tests
+enforce both rules.
 
 ## Use your own copy privately
 
@@ -68,7 +91,7 @@ hold your ledger and holdings.
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Money engine, ledger, guardrails, demo (no network) | in review |
+| 1 | Money engine, ledger, guardrails, demo (no network) | done |
 | 2 | Alpaca adapter (paper) | |
 | 3 | Teller (Chase) adapter and enrollment | |
 | 4 | `invest` workflow and state branch | |
