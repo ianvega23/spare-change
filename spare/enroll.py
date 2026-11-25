@@ -100,8 +100,8 @@ def make_handler(page: str, nonce: str, directory: Path, done: threading.Event, 
                 out(f"Couldn't save the token: {html.escape(str(e))}")
                 return self._send(400, b"bad token")
             out(f"Saved your Teller access token to {path} (only you can read it).")
+            done.set()  # before replying, so whoever sees the 200 can rely on it
             self._send(200, b"ok")
-            done.set()
     return Handler
 
 
