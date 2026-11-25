@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 to 4 of 10 (money engine, Alpaca paper adapter, Teller bank link and the weekday GitHub Actions job) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 5 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job and the Telegram bot) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -78,6 +78,8 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/bank_teller.py` | Teller over mutual TLS: your checking account's posted purchases, re-link alerts; `bank_plaid.py` is the fallback |
 | `spare/core/state.py` | Files on the `state` branch: ledger, approved targets, pause flag, outbox for the bot |
 | `spare/jobs.py` | `invest`, `status` and `doctor` commands |
+| `spare/core/proposals.py` | Big changes: proposals with HMAC-signed Approve/Skip buttons, 7-day expiry, guard re-check on approve |
+| `spare/bot/` | Telegram client, the hourly relay (outbox, buttons, /status /pause /resume) and onboarding |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
@@ -113,6 +115,22 @@ python -m spare paper-order --dollars 5   # one $5 paper buy of VTI, then finds 
 
 Test orders are tagged `spare-test-`, so the weekly job neither counts them nor flags them as unknown.
 
+## Set up the Telegram bot
+
+1. Make a bot with **@BotFather** and copy its token. Send your new bot any message.
+2. `TELEGRAM_BOT_TOKEN=... python -m spare telegram-chat-id` prints your chat id.
+3. Onboard on your computer: `TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... python -m spare onboard`.
+   The bot asks for your goals, your feelings about risk and your time horizon in your own words,
+   then the multiplier, buy day, monthly cap and whether to allow single stocks. It saves
+   `profile.toml` and `config.toml` in `state/` and creates your first proposal. Onboarding never
+   switches off dry run.
+4. Add a **`telegram`** environment with `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and
+   `TELEGRAM_HMAC_KEY` (any random 32+ character secret, e.g. `openssl rand -hex 32`).
+
+The hourly `bot` job sends your messages, offers proposals with **Approve / Skip**, and handles
+`/status`, `/pause`, `/resume` and `/profile`. It only answers your chat id, and every button is
+signed, so a forged tap does nothing. Unanswered proposals expire after 7 days as Skip.
+
 ## Run it on GitHub Actions
 
 In **your private copy**:
@@ -129,7 +147,7 @@ In **your private copy**:
 
 The `invest` job runs every weekday at 15:00 UTC, collects round-ups, and buys once a week on your
 buy day. It commits only the ledger, run status and outbox to the `state` branch. Pause it any time
-with `{"paused": true}` in `state/flags.json` (the Telegram bot's `/pause` will do this in phase 5).
+with `/pause` in Telegram (it writes `{"paused": true}` to `state/flags.json`).
 
 ## Use your own copy privately
 
@@ -145,7 +163,7 @@ hold your ledger and holdings.
 | 2 | Alpaca adapter (paper) | done |
 | 3 | Teller (Chase) adapter and enrollment | done |
 | 4 | `invest` workflow and state branch | done |
-| 5 | Telegram bot and onboarding | |
+| 5 | Telegram bot and onboarding | done |
 | 6 | AI allocator and model-agnostic LLM adapter | |
 | 7 | Weekly update and merchant categorizer | |
 | 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | |
