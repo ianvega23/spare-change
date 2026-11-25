@@ -9,6 +9,7 @@ from .core import guard, invest
 from .core.bank import BankError
 from .core.broker import BrokerError
 from .core.broker_alpaca import AlpacaBroker
+from .core import shadow
 from .core.state import State, StateError
 
 STALE_RUN_DAYS = 3
@@ -86,9 +87,23 @@ def run_invest(state_dir: str, today: str | None = None, bank=None, broker=None,
                             + ", ".join(f"{o.symbol} {usd(o.notional_cents)}" for o in result.orders))
     if result.status == "no_targets":
         out("  No approved allocation yet, so the pot keeps growing (onboarding arrives in phase 5).")
+    record_valuation(state, broker, result, day, out)
     ok = result.status != "invalid"
     state.record_run(result.status, day, ok=ok)
     return EXIT_OK if ok else EXIT_FAILED
+
+
+def record_valuation(state: State, broker, result, day: str, out=print) -> None:
+    """For the weekly update only: mirror new buys into the shadow portfolio and note market values.
+    A failure here never fails the run, because no money depends on it."""
+    try:
+        vti = broker.latest_price(shadow.SHADOW_SYMBOL)
+        if result.status == "bought" and vti:
+            state.append_jsonl("shadow.jsonl", shadow.entry(day, sum(o.notional_cents for o in result.orders), vti))
+        state._write_json("valuation.json", {"day": day, "positions_cents": broker.positions_cents(),
+                                             "vti_price": vti})
+    except (BrokerError, AttributeError, OSError) as e:
+        out(f"  note: couldn't record market values ({e})")
 
 
 def status(state_dir: str, out=print) -> int:

@@ -35,6 +35,7 @@ class Config:
     allocator_model: str = "claude-opus-5-5"
     cheap_model: str = "claude-haiku-5-5"
     ai_monthly_budget_cents: int = 200
+    send_merchants_to_ai: bool = True
 
 
 def dollars_to_cents(value, name: str) -> int:
@@ -52,7 +53,8 @@ def dollars_to_cents(value, name: str) -> int:
 _TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_day", "monthly_cap",
              "allow_stocks", "limits", "bank", "bank_environment",
              "bank_account_id", "teller_spending_sign",
-             "allocator_model", "cheap_model", "ai_monthly_budget"}
+             "allocator_model", "cheap_model", "ai_monthly_budget",
+             "send_merchants_to_ai"}
 _LIMIT_KEYS = {"min_holdings", "max_etf_weight", "max_stock_weight", "max_stocks_total"}
 
 
@@ -63,7 +65,7 @@ def from_dict(raw: dict) -> Config:
     raw_limits = raw.get("limits", {})
     if set(raw_limits) - _LIMIT_KEYS:
         raise ConfigError(f"unknown limit(s): {', '.join(sorted(set(raw_limits) - _LIMIT_KEYS))}")
-    for key in ("enabled", "dry_run", "allow_stocks"):
+    for key in ("enabled", "dry_run", "allow_stocks", "send_merchants_to_ai"):
         if key in raw and not isinstance(raw[key], bool):
             raise ConfigError(f"{key} must be true or false")
     alpaca_env = raw.get("alpaca_env", "paper")
@@ -112,6 +114,7 @@ def from_dict(raw: dict) -> Config:
         bank_account_id=account,
         teller_spending_sign=sign,
         ai_monthly_budget_cents=ai_budget,
+        send_merchants_to_ai=raw.get("send_merchants_to_ai", True),
         **models,
     )
     errors = guard.validate_settings(buy_weekday=cfg.buy_weekday,

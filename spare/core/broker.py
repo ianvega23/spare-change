@@ -53,3 +53,11 @@ class Broker(Protocol):
     def list_orders(self, since: str | None = None) -> list[Order]:
         """Recent orders, all statuses. `since` is an ISO date."""
         ...
+
+    def positions_cents(self) -> dict[str, int]:
+        """Market value of each holding, in cents (for the weekly update; never used to trade)."""
+        ...
+
+    def latest_price(self, symbol: str) -> str | None:
+        """Last trade price as a decimal string, or None if there isn't one."""
+        ...

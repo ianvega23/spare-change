@@ -12,6 +12,9 @@
       decisions.jsonl  every answer and every small change applied on its own
       telemetry.jsonl  tokens, cost and latency of each AI call (brain job writes)
       brain.json       when the allocator last ran, and the last automatic change
+      shadow.jsonl     each buy mirrored into all-VTI, with VTI's price then (invest job writes)
+      valuation.json   market value of each holding and VTI's price at the last run (invest job)
+      categories.json  merchant -> spending category cache (weekly update writes)
 """
 from __future__ import annotations
 
@@ -94,6 +97,25 @@ class State:
         self._write_json(name, {"kind": kind, "text": text[:MAX_MESSAGE_CHARS],
                                 "at": now.isoformat(timespec="seconds")})
         return self.root / name
+
+    def append_jsonl(self, name: str, data: dict) -> None:
+        with open(self.root / name, "a", encoding="utf-8") as f:
+            f.write(json.dumps(data, sort_keys=True) + "\n")
+
+    def read_jsonl(self, name: str) -> list[dict]:
+        """Every readable line; a torn last line (a crash mid-write) is skipped."""
+        path = self.root / name
+        if not path.exists():
+            return []
+        out = []
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(raw)
+            except ValueError:
+                continue
+            if isinstance(item, dict):
+                out.append(item)
+        return out
 
     def outbox(self) -> list[dict]:
         return [json.loads(p.read_text(encoding="utf-8"))

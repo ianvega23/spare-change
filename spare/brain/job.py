@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import os
 import tomllib
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from ..core import config as config_mod
 from ..core import guard, proposals
 from ..core.state import State, StateError
-from . import allocator, telemetry
+
+from . import allocator, categorize, summary, telemetry
 from .llm import ClaudeClient, LLMClient, LLMError, estimate_microcents
 
 EXIT_OK, EXIT_FAILED = 0, 1
@@ -34,11 +35,13 @@ def _brain_state(state: State) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def client_from_env(cfg: config_mod.Config, environ=None) -> LLMClient:
+def client_from_env(cfg: config_mod.Config, environ=None, *, cheap: bool = False) -> LLMClient:
     environ = os.environ if environ is None else environ
     key = environ.get("ANTHROPIC_API_KEY", "")
     if not key:
         raise LLMError("ANTHROPIC_API_KEY isn't set")
+    if cheap:
+        return ClaudeClient(cfg.cheap_model, api_key=key, effort="low")
     return ClaudeClient(cfg.allocator_model, api_key=key)
 
 
@@ -156,3 +159,47 @@ def first_proposal(state_dir: str, profile: dict, llm: LLMClient | None = None,
         raise LLMError("; ".join(outcome.errors) or "no usable allocation")
     return {"targets": outcome.targets, "reasons": outcome.reasons, "summary": outcome.summary,
             "source": f"allocator:{outcome.prompt_version}:{outcome.model}"}
+
+
+WEEKLY_ESTIMATE_TOKENS = (2 * 4_000, 2 * 2_000)
+
+
+def run_weekly(state_dir: str, llm: LLMClient | None = None, now: datetime | None = None,
+               environ=None, out=print) -> int:
+    """The Sunday update. Always sends: with no key, no budget or a bad draft it uses the plain template."""
+    now = now or datetime.now(timezone.utc)
+    state = State(state_dir).ensure()
+    try:
+        cfg = config_mod.load(state.config_path) if state.config_path.exists() else config_mod.from_dict({})
+    except config_mod.ConfigError as e:
+        out(f"Config is invalid, so no weekly update: {e}")
+        return EXIT_FAILED
+    today: date = now.date()
+    if llm is None:
+        try:
+            llm = client_from_env(cfg, environ, cheap=True)
+        except LLMError:
+            llm = None  # numbers-only template, no categories beyond the rules
+    if llm is not None and not telemetry.within_budget(
+            state, cfg.ai_monthly_budget_cents,
+            estimate_microcents(llm.model, *WEEKLY_ESTIMATE_TOKENS), now)[0]:
+        out("AI budget used up this month: the update uses the plain template.")
+        llm = None
+
+    start = today - timedelta(days=today.weekday())
+    merchants = [e.get("merchant", "") for e in state.ledger().of_type("roundup")
+                 if start.isoformat() <= str(e.get("date")) <= today.isoformat()]
+    cats, cat_calls = categorize.categorize(state, merchants, llm, use_ai=cfg.send_merchants_to_ai)
+    for call in cat_calls:
+        telemetry.record(state, call, purpose="categorize", prompt_version=categorize.PROMPT_VERSION, now=now)
+
+    facts = summary.facts(state, today, cats)
+    base = summary.template(facts)
+    message, calls, how = summary.draft(base, llm)
+    for call in calls:
+        telemetry.record(state, call, purpose="weekly_summary", prompt_version=summary.PROMPT_VERSION,
+                         outcome=how, now=now)
+    state.queue_message("weekly", message)
+    out(message)
+    out(f"(weekly update queued, {how} wording)")
+    return EXIT_OK

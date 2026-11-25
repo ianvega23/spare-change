@@ -1,6 +1,6 @@
 name: brain
 
-# Sunday allocation review. Holds only the Anthropic key, so it can't reach your bank or broker.
+# Sunday allocation review and weekly update. Holds only the Anthropic key, so it can't reach your bank or broker.
 # It writes a small change to targets.json, or a proposal that waits for your Approve in Telegram.
 # Off until you opt in by setting the repository variable SPARE_ENABLED to "true".
 on:
@@ -52,11 +52,18 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python -m spare brain
 
+      - name: Weekly update
+        if: always() && hashFiles('state/**') != ''
+        env:
+          SPARE_STATE_DIR: state
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m spare weekly
+
       - name: Commit the result to the state branch
         if: always() && hashFiles('state/**') != ''
         run: |
           cd state
-          for f in targets.json proposals decisions.jsonl telemetry.jsonl brain.json outbox; do
+          for f in targets.json proposals decisions.jsonl telemetry.jsonl brain.json categories.json outbox; do
             if [ -e "$f" ] || git ls-files --error-unmatch "$f" >/dev/null 2>&1; then git add -A -- "$f"; fi
           done
           if git diff --cached --quiet; then

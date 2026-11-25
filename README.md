@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 to 6 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot and the Claude allocator) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 7 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot, the Claude allocator and the weekly update) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -80,7 +80,8 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/jobs.py` | `invest`, `status` and `doctor` commands |
 | `spare/core/proposals.py` | Big changes: proposals with HMAC-signed Approve/Skip buttons, 7-day expiry, guard re-check on approve |
 | `spare/bot/` | Telegram client, the hourly relay (outbox, buttons, /status /pause /resume) and onboarding |
-| `spare/brain/` | The Claude allocator: model adapter (`llm.py`), versioned prompts, output checks and retry (`allocator.py`), cost tracking and budget (`telemetry.py`), the Sunday `brain` job |
+| `spare/core/shadow.py` | The shadow all-VTI portfolio: each buy mirrored at VTI's price that day |
+| `spare/brain/` | The weekly update (`summary.py`, `categorize.py`) and the Claude allocator: model adapter (`llm.py`), versioned prompts, output checks and retry (`allocator.py`), cost tracking and budget (`telemetry.py`), the Sunday `brain` job |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
@@ -156,6 +157,24 @@ Every call is logged in `state/telemetry.jsonl` with tokens, cost, latency, mode
 version. `ai_monthly_budget` in `config.toml` (default $2.00) stops the review for the rest of the
 month once it would be passed; buying carries on. Expect about $0.05 a week on Claude Opus 5.5.
 
+## The Sunday update
+
+After the allocation review, the same Sunday job sends about six lines to Telegram:
+
+> This week (Mon Feb 23 to Sun Mar 1): 23 purchases, $8.41 in round-ups (2x).
+> Invested Monday: $8.41 across 5 funds. Pot now $0.40.
+> Holdings: $412.10 across 5 funds. Shadow all-VTI portfolio: $409.55.
+> Spending: dining $84.20, groceries $61.10, shopping $40.00.
+> No changes this week.
+> Next buy Monday.
+
+Every number comes from code. Claude Haiku may reword it, but its version is used only if it contains
+no number that isn't already in the plain one and drops no dollar amount; otherwise the plain version
+goes. The **shadow portfolio** mirrors each real buy, same day and dollars, into VTI alone, so you can
+see honestly whether the mix is doing better or worse than one index fund. Spending categories come
+from a cache, then simple rules, then Claude Haiku for the rest. Set `send_merchants_to_ai = false` to
+keep merchant names off the AI entirely. See [PRIVACY.md](PRIVACY.md).
+
 ## Run it on GitHub Actions
 
 In **your private copy**:
@@ -171,7 +190,7 @@ In **your private copy**:
    `python -m spare doctor` after `git worktree add state origin/state`.
 
 The `invest` job runs every weekday at 15:00 UTC, collects round-ups, and buys once a week on your
-buy day. It commits only the ledger, run status and outbox to the `state` branch. Pause it any time
+buy day. It commits only the ledger, run status, outbox and market values (for the weekly update) to the `state` branch. Pause it any time
 with `/pause` in Telegram (it writes `{"paused": true}` to `state/flags.json`).
 
 ## Use your own copy privately
@@ -190,7 +209,7 @@ hold your ledger and holdings.
 | 4 | `invest` workflow and state branch | done |
 | 5 | Telegram bot and onboarding | done |
 | 6 | AI allocator and model-agnostic LLM adapter | done |
-| 7 | Weekly update and merchant categorizer | |
+| 7 | Weekly update and merchant categorizer | done |
 | 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | |
 | 9 | Two-week paper-trading run | |
 | 10 | Public.com adapter, docs, v0.1.0 | |
