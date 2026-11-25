@@ -30,7 +30,8 @@ MAX_PROFILE_CHARS = 300
 MAX_TOKENS = 16000
 CONFIDENCE = ("low", "medium", "high")
 
-_SYMBOL_RE = re.compile(r"\b[A-Z][A-Z.]{0,5}\b")
+# Two or more capitals: single-letter tickers (A, C, F, T...) can't be told apart from words.
+_SYMBOL_RE = re.compile(r"\b[A-Z][A-Z.]{1,5}\b")
 _NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
 
 
@@ -150,6 +151,11 @@ def check_explanations(targets: dict[str, float], reasons: dict[str, str], summa
     return errors
 
 
+def offered(universe: guard.Universe, limits: guard.Limits) -> frozenset[str]:
+    """The symbols the model was shown: ETFs, plus stocks only when they're enabled."""
+    return universe.etfs | universe.stocks if limits.allow_stocks else universe.etfs
+
+
 def check(data, universe: guard.Universe, limits: guard.Limits, input_text: str):
     """Shape, size, guardrails and explanations. Returns (targets, reasons, summary, confidence, errors)."""
     if not isinstance(data, dict):
@@ -199,7 +205,7 @@ def check(data, universe: guard.Universe, limits: guard.Limits, input_text: str)
     if targets:
         errors += guard.validate_targets(targets, universe, limits)
     if not errors:
-        errors += check_explanations(targets, reasons, summary, universe.etfs | universe.stocks, input_text)
+        errors += check_explanations(targets, reasons, summary, offered(universe, limits), input_text)
     return targets, reasons, summary.strip(), confidence, errors
 
 

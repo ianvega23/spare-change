@@ -211,7 +211,7 @@ def run(llm: LLMClient, settings: Settings = Settings(), judge_llm: LLMClient | 
         mix_ok = targets and not guard.validate_targets(targets, universe, limits)
         if not mix_ok:
             return False, None
-        expl = allocator.check_explanations(targets, reasons, summary, universe.etfs | universe.stocks, user)
+        expl = allocator.check_explanations(targets, reasons, summary, allocator.offered(universe, limits), user)
         return not errors, not expl
 
     profiles = load("profiles.json")[: settings.profile_limit]

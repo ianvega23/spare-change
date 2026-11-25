@@ -102,9 +102,10 @@ def run(cfg: Config, ledger: Ledger, bank: Bank, broker: Broker, targets: dict[s
         result.status = "no_targets"  # nothing approved yet; the pot keeps growing
         return result
     invested = ledger.invested_in_month_cents(day[:7])
-    amount = engine.buy_amount(pot, cfg.monthly_cap_cents, invested)
+    minimum = max(engine.MIN_ORDER_CENTS, int(getattr(broker, "min_order_cents", engine.MIN_ORDER_CENTS)))
+    amount = engine.buy_amount(pot, cfg.monthly_cap_cents, invested, minimum)
     if amount == 0:
-        result.status = "cap_reached" if pot >= engine.MIN_ORDER_CENTS else "pot_too_small"
+        result.status = "cap_reached" if pot >= minimum else "pot_too_small"
         return result
     if not broker.market_open(day):
         result.status = "market_closed"
@@ -116,16 +117,17 @@ def run(cfg: Config, ledger: Ledger, bank: Bank, broker: Broker, targets: dict[s
         errors += guard.check_tradable(symbol, broker.asset(symbol))
     cash = broker.cash_cents()
     if cash < amount:
-        msg = f"top up Alpaca: ${amount / 100:.2f} to invest but only ${cash / 100:.2f} cash"
+        msg = f"top up {getattr(broker, 'label', 'your brokerage')}: ${amount / 100:.2f} to invest but only ${cash / 100:.2f} cash"
         ledger.append("alert", message=msg)
         result.status, result.errors = "cash_short", alerts + [msg]
         return result
 
-    plan = engine.split(amount, targets, ledger.holdings_cents())
+    plan = engine.split(amount, targets, ledger.holdings_cents(), minimum)
     if not errors:
         errors += guard.validate_buy(amount_cents=amount, invested_this_month_cents=invested,
-                                     monthly_cap_cents=cfg.monthly_cap_cents, cash_cents=cash)
-        errors += guard.validate_order_plan(plan, targets, amount)
+                                     monthly_cap_cents=cfg.monthly_cap_cents, cash_cents=cash,
+                                     min_order_cents=minimum)
+        errors += guard.validate_order_plan(plan, targets, amount, minimum)
     if errors:
         ledger.append("alert", message="buy blocked by guardrails", errors=errors)
         result.status, result.errors = "invalid", alerts + errors

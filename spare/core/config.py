@@ -24,6 +24,8 @@ class Config:
     enabled: bool = True
     dry_run: bool = True
     alpaca_env: str = "paper"
+    broker: str = "alpaca"  # alpaca | public (Public is live only: see docs/adr/0003)
+    public_account_id: str = ""
     multiplier: int = 1
     buy_weekday: int = 0  # 0 = Monday ... 4 = Friday
     monthly_cap_cents: int = guard.DEFAULT_MONTHLY_CAP_CENTS
@@ -50,7 +52,7 @@ def dollars_to_cents(value, name: str) -> int:
     return int(cents)
 
 
-_TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_day", "monthly_cap",
+_TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "broker", "public_account_id", "multiplier", "buy_day", "monthly_cap",
              "allow_stocks", "limits", "bank", "bank_environment",
              "bank_account_id", "teller_spending_sign",
              "allocator_model", "cheap_model", "ai_monthly_budget",
@@ -71,6 +73,13 @@ def from_dict(raw: dict) -> Config:
     alpaca_env = raw.get("alpaca_env", "paper")
     if alpaca_env not in ("paper", "live"):
         raise ConfigError('alpaca_env must be "paper" or "live"')
+
+    broker = raw.get("broker", "alpaca")
+    if broker not in ("alpaca", "public"):
+        raise ConfigError('broker must be "alpaca" or "public"')
+    public_account = raw.get("public_account_id", "")
+    if not isinstance(public_account, str):
+        raise ConfigError("public_account_id must be text")
 
     buy_day = raw.get("buy_day", "monday")
     if not isinstance(buy_day, str) or buy_day.lower() not in WEEKDAYS:
@@ -105,6 +114,8 @@ def from_dict(raw: dict) -> Config:
         enabled=raw.get("enabled", True),
         dry_run=raw.get("dry_run", True),
         alpaca_env=alpaca_env,
+        broker=broker,
+        public_account_id=public_account,
         multiplier=raw.get("multiplier", 1),
         buy_weekday=WEEKDAYS.index(buy_day.lower()),
         monthly_cap_cents=dollars_to_cents(raw.get("monthly_cap", 200), "monthly_cap"),

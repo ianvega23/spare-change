@@ -4,6 +4,8 @@
 enabled = true          # false = kill switch: every run logs and exits
 dry_run = true          # true = plan buys and print them, place no orders
 alpaca_env = "paper"    # "paper" or "live" (live also needs a passed paper checklist)
+broker = "alpaca"       # "alpaca" or "public" (Public is live only: orders wait for the checklist)
+public_account_id = ""  # Public: empty = your one brokerage account
 
 multiplier = 1          # round-up multiplier: 1, 2 or 3
 buy_day = "monday"      # invest the week's round-ups once a week, on this weekday

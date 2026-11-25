@@ -52,16 +52,19 @@ def is_buy_day(day: date, buy_weekday: int, last_buy: date | None) -> bool:
     return last_buy is None or last_buy.isocalendar()[:2] != day.isocalendar()[:2]
 
 
-def buy_amount(pot_cents: int, monthly_cap_cents: int, invested_this_month_cents: int) -> int:
+def buy_amount(pot_cents: int, monthly_cap_cents: int, invested_this_month_cents: int,
+               min_order_cents: int = MIN_ORDER_CENTS) -> int:
     """How much to buy on a buy day: the whole pot (this week's round-ups plus anything carried
-    over), clamped to what's left of the monthly cap. Under $1 waits for next week."""
+    over), clamped to what's left of the monthly cap. Under the broker's minimum order ($1 on
+    Alpaca, $5 on Public) it waits for next week."""
     room = max(0, monthly_cap_cents - invested_this_month_cents)
     amount = min(pot_cents, room)
-    return amount if amount >= MIN_ORDER_CENTS else 0
+    return amount if amount >= max(MIN_ORDER_CENTS, min_order_cents) else 0
 
 
 def split(amount_cents: int, targets: dict[str, float],
-          holdings_cents: dict[str, int] | None = None) -> dict[str, int]:
+          holdings_cents: dict[str, int] | None = None,
+          min_order_cents: int = MIN_ORDER_CENTS) -> dict[str, int]:
     """Split a buy across the target allocation without selling anything.
 
     Each holding's gap is how far it would sit below its target after this buy. The buy is shared
@@ -70,7 +73,8 @@ def split(amount_cents: int, targets: dict[str, float],
     Slices under $1 are dropped and given to the most underweight holding. Returns {} if the
     amount can't make even one $1 order. The slices always add up to `amount_cents`.
     """
-    if amount_cents < MIN_ORDER_CENTS or not targets:
+    minimum = max(MIN_ORDER_CENTS, min_order_cents)  # a broker can raise the minimum, never lower it
+    if amount_cents < minimum or not targets:
         return {}
     pct = {s: round(w * 100) for s, w in targets.items()}  # guard ensures whole percents
     holdings = {s: (holdings_cents or {}).get(s, 0) for s in targets}
@@ -90,7 +94,7 @@ def split(amount_cents: int, targets: dict[str, float],
 
     # Fold any slice under $1 into the most underweight holding that remains.
     while True:
-        small = [s for s, c in slices.items() if 0 < c < MIN_ORDER_CENTS]
+        small = [s for s, c in slices.items() if 0 < c < minimum]
         if not small:
             break
         smallest = min(small, key=lambda s: (slices[s], s))

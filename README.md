@@ -6,11 +6,13 @@ shares of a diversified portfolio in your own brokerage account. An AI allocator
 the goals you describe in your own words, and plain code decides whether that suggestion is allowed.
 
 It is built for developers who are comfortable with API keys and GitHub secrets. There is no
-hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
-Alpaca and Telegram accounts.
+hosted service: you run it on GitHub Actions with your own Chase (via Teller), Alpaca (or Public)
+and Telegram accounts. Your private copy needs a GitHub plan with environment secrets (Pro or
+above), because each job keeps its own keys.
 
-> **Status:** phases 1 to 8 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot, the Claude allocator, the weekly update and evals) are built and tested. Nothing here trades real money yet. The defaults are dry run
-> and Alpaca paper trading. See the [roadmap](#roadmap).
+> **Status:** v0.1.0. All build phases are done and tested; the two-week paper run (phase 9) is
+> the last step before anyone should trade real money. The defaults are dry run and Alpaca paper
+> trading. See the [roadmap](#roadmap) and the [changelog](CHANGELOG.md).
 
 ## Safety design
 
@@ -40,10 +42,21 @@ and never sees your transactions when it picks an allocation.
 - **Append-only ledger and idempotent orders.** Every round-up and buy is a line in a JSONL ledger.
   Order ids are derived from the round-ups they spend, so a retried run can't buy twice.
 - **Kill switch, dry run and paper by default.** Going live needs explicit settings plus a passed
-  two-week paper-trading checklist.
+  two-week paper-trading checklist. Public has no paper account, so choosing it counts as live: it
+  can read in dry run, but its orders stay locked until that checklist passes.
 
-The full design, threat model and trade-offs are in [`docs/PLAN.md`](docs/PLAN.md) and
-[`docs/REVIEW.md`](docs/REVIEW.md).
+**If a key leaks:**
+
+| Key | Worst case | Why it stops there |
+|---|---|---|
+| Anthropic | Someone spends your AI budget | The `ai` environment holds no bank or broker key |
+| Telegram | Someone reads your updates or sends you messages | Buttons are HMAC-signed with a separate key; the bot only answers your chat id |
+| Alpaca / Public | Someone trades in your brokerage account | Reconcile flags every order this tool didn't place, on the next run |
+| Teller / Plaid | Someone reads your transactions | Spare Change links them for transactions only and never asks for payment access |
+
+A short tour is in [`docs/design.md`](docs/design.md). The full design, threat model and
+trade-offs are in [`docs/PLAN.md`](docs/PLAN.md), [`docs/REVIEW.md`](docs/REVIEW.md) and the
+[ADRs](docs/adr/).
 
 ## Try it
 
@@ -70,11 +83,13 @@ Week  3: +$13.19 round-ups, pot $7.43
 
 | Path | What it does |
 |---|---|
-| `spare/core/engine.py` | Round-ups in integer cents, multiplier, weekly buy day, monthly cap, split with a $1 minimum per order |
+| `spare/core/engine.py` | Round-ups in integer cents, multiplier, weekly buy day, monthly cap, split with the broker's minimum per order ($1 Alpaca, $5 Public) |
 | `spare/core/guard.py` | Every guardrail as a pure function: allowlist, caps, weights, small vs big change, no sells |
 | `spare/core/ledger.py` | Append-only JSONL ledger; pot, holdings and seen transactions are derived from it |
 | `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |
 | `spare/core/broker_alpaca.py` | Alpaca Trading API over stdlib HTTP: cash, clock, assets, notional orders, order list; paper unless explicitly unlocked |
+| `spare/core/broker_public.py` | Public Trading API: live only, $5 minimum, orders locked until the go-live checklist passes |
+| `spare/setup.py` | `spare setup`: config, GitHub environments and secrets through `gh` |
 | `spare/core/bank_teller.py` | Teller over mutual TLS: your checking account's posted purchases, re-link alerts; `bank_plaid.py` is the fallback |
 | `spare/core/state.py` | Files on the `state` branch: ledger, approved targets, pause flag, outbox for the bot |
 | `spare/jobs.py` | `invest`, `status` and `doctor` commands |
@@ -85,6 +100,7 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
+| `allowlist/sp500.csv` | S&P 500 constituents, offered only with `allow_stocks = true` |
 
 `spare/core` uses only the Python standard library and never imports the AI or bot code. Tests
 enforce both rules.
@@ -206,13 +222,31 @@ see honestly whether the mix is doing better or worse than one index fund. Spend
 from a cache, then simple rules, then Claude Haiku for the rest. Set `send_merchants_to_ai = false` to
 keep merchant names off the AI entirely. See [PRIVACY.md](PRIVACY.md).
 
-## Run it on GitHub Actions
+## Set it up with the wizard
+
+In **your private copy**, with the [GitHub CLI](https://cli.github.com) signed in:
+
+```bash
+python -m spare setup
+```
+
+It asks for your bank (Teller or Plaid), broker (Alpaca or Public) and whether to use Claude, writes
+`state/config.toml` in dry run, creates the `money`, `telegram` and `ai` environments limited to
+`main`, and stores each secret only in the environment of the job that reads it. You type secrets
+with echo off and they go straight to `gh secret set` on stdin; nothing is saved on disk. It's safe
+to run again (it skips secrets already set). Linking the bank and onboarding stay separate steps,
+and the wizard lists them at the end. On GitHub Free, environment secrets only work in public
+repositories, so the wizard stops on a private copy without Pro or above rather than put every key
+in one place.
+
+## Run it on GitHub Actions by hand
 
 In **your private copy**:
 
 1. **Settings → Environments → New environment `money`**, limited to the `main` branch. Add these secrets:
    `TELLER_ACCESS_TOKEN`, `TELLER_CERT_PEM`, `TELLER_KEY_PEM` (the contents of the two `.pem` files),
-   `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY` (paper keys).
+   `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY` (paper keys), or `PUBLIC_SECRET_KEY` with
+   `broker = "public"` in your config.
 2. **Settings → Variables → `SPARE_ENABLED` = `true`**. Without it the workflow does nothing, so the
    public repo never runs.
 3. Optional: put your `config.toml` on the `state` branch. Without one the job uses the safe defaults:
@@ -243,7 +277,7 @@ hold your ledger and holdings.
 | 7 | Weekly update and merchant categorizer | done |
 | 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | done |
 | 9 | Two-week paper-trading run | |
-| 10 | Public.com adapter, docs, v0.1.0 | |
+| 10 | Public.com adapter, setup wizard, docs, v0.1.0 | done |
 
 Later: an opt-in sell mode (long-term lots only, approval for every sell, wash-sale blocking).
 
