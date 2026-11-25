@@ -65,10 +65,10 @@ def save_token(directory: Path, payload: dict) -> Path:
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = directory / "token.txt"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(token + "\n")
     meta = {k: payload.get(k) for k in ("enrollmentId", "institution")}
-    (directory / "enrollment.json").write_text(json.dumps(meta, indent=2) + "\n")
+    (directory / "enrollment.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     return path
 
 

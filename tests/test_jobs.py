@@ -185,6 +185,7 @@ class WorkflowTests(unittest.TestCase):
         return "\n".join(line[10:] for line in m.group(1).splitlines())
 
     @unittest.skipUnless(shutil.which("git"), "needs git")
+    @unittest.skipIf(os.name == "nt", "these are the workflow's bash steps, which run on Linux runners")
     def test_state_branch_steps_commit_only_state_files(self):
         checkout, commit = self.step("Check out the state branch"), self.step("Commit the ledger to the state branch")
         with tempfile.TemporaryDirectory() as d:

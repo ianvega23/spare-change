@@ -101,7 +101,8 @@ class GitHub:
 
     def gh(self, *args: str, stdin: str | None = None) -> str:
         try:
-            r = self._run(["gh", *args], input=stdin, capture_output=True, text=True, check=False)
+            r = self._run(["gh", *args], input=stdin, capture_output=True, text=True,
+                          encoding="utf-8", check=False)
         except FileNotFoundError:
             raise SetupError("the GitHub CLI `gh` isn't installed: https://cli.github.com") from None
         if r.returncode != 0:
@@ -150,11 +151,28 @@ class GitHub:
         self.gh("variable", "set", name, "--body", value, "--repo", self.repo)
 
 
-def read_value(secret: Secret, ask_secret: Ask, ask: Ask) -> str:
+# Files that `spare enroll` and the Teller dashboard leave in teller/, offered as defaults.
+DEFAULT_FILES = {"TELLER_ACCESS_TOKEN": Path("teller", "token.txt"),
+                 "TELLER_CERT_PEM": Path("teller", "certificate.pem"),
+                 "TELLER_KEY_PEM": Path("teller", "private_key.pem")}
+
+
+def clean_path(text: str) -> Path:
+    """A pasted path: Windows "Copy as path" adds quotes, and drag-and-drop may too."""
+    return Path(text.strip().strip('"').strip("'")).expanduser()
+
+
+def read_value(secret: Secret, ask_secret: Ask, ask: Ask, base: Path = Path(".")) -> str:
     if secret.kind == "generated":
         return pysecrets.token_hex(32)
+    default = base / DEFAULT_FILES[secret.name] if secret.name in DEFAULT_FILES else None
+    if secret.kind == "text" and default is not None and default.is_file():
+        if yes(ask, f"  Use the token saved in {DEFAULT_FILES[secret.name]}?", True):
+            return default.read_text(encoding="utf-8").strip()
     if secret.kind == "file":
-        path = Path(ask(f"{secret.prompt}: ").strip()).expanduser()
+        hint = f" (Enter for {DEFAULT_FILES[secret.name]})" if default is not None and default.is_file() else ""
+        answer = ask(f"{secret.prompt}{hint}: ")
+        path = default if hint and not answer.strip() else clean_path(answer)
         try:
             text = path.read_text(encoding="utf-8")
         except OSError as e:
