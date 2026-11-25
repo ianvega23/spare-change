@@ -131,9 +131,16 @@ class InvestTests(TempDirCase):
 
     def test_invalid_targets_block_the_buy(self):
         broker = FakeBroker()
-        for bad in ({"VTI": 1.0}, {**TARGETS, "VNQ": 0.0, "TSLA": 0.10}, {}):
+        for bad in ({"VTI": 1.0}, {**TARGETS, "VNQ": 0.0, "TSLA": 0.10}):
             r = self.run_once(ListBank(purchases(60)), broker, targets=bad)
             self.assertEqual(r.status, "invalid", bad)
+        self.assertEqual(broker.orders, {})
+
+    def test_no_approved_targets_yet_keeps_the_pot(self):
+        broker = FakeBroker()
+        r = self.run_once(ListBank(purchases(60)), broker, targets={})
+        self.assertEqual(r.status, "no_targets")
+        self.assertEqual(r.pot_cents, 5_940)
         self.assertEqual(broker.orders, {})
 
     def test_untradable_symbol_blocks_the_buy(self):

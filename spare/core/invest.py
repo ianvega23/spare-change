@@ -21,7 +21,7 @@ TEST_ORDER_PREFIX = "spare-test-"
 
 @dataclass
 class RunResult:
-    status: str  # disabled | not_buy_day | pot_too_small | cap_reached | market_closed | cash_short | invalid | dry_run | bought
+    status: str  # disabled | not_buy_day | no_targets | pot_too_small | cap_reached | market_closed | cash_short | invalid | dry_run | bought
     new_roundups: int = 0
     pot_cents: int = 0
     plan: dict[str, int] = field(default_factory=dict)
@@ -97,6 +97,9 @@ def run(cfg: Config, ledger: Ledger, bank: Bank, broker: Broker, targets: dict[s
     last_buy = ledger.last_buy_date()
     if not engine.is_buy_day(date.fromisoformat(day), cfg.buy_weekday,
                              date.fromisoformat(last_buy) if last_buy else None):
+        return result
+    if not targets:
+        result.status = "no_targets"  # nothing approved yet; the pot keeps growing
         return result
     invested = ledger.invested_in_month_cents(day[:7])
     amount = engine.buy_amount(pot, cfg.monthly_cap_cents, invested)

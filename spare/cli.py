@@ -14,7 +14,7 @@ from .fake import FakeBank, FakeBroker
 # An example allocation for the demo only. Not advice.
 DEMO_TARGETS = {"VTI": 0.35, "VXUS": 0.20, "BND": 0.20, "SGOV": 0.15, "VNQ": 0.10}
 DEMO_PRICES = {"VTI": 31_000, "VXUS": 6_800, "BND": 7_300, "SGOV": 10_050, "VNQ": 9_100}
-LATER = {"onboard": 5, "invest": 4, "brain": 6, "bot": 5, "status": 4, "doctor": 4, "eval": 8}
+LATER = {"onboard": 5, "brain": 6, "bot": 5, "eval": 8}
 
 
 def usd(cents: int) -> str:
@@ -73,6 +73,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--buy-day", default="monday", help="weekday to invest the week's round-ups")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--ledger", default=None, help="ledger path (default: a temp file)")
+    p = sub.add_parser("invest", help="one run of the money path (what the weekday job runs)")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    p.add_argument("--date", default=None, help="pretend today is this ISO date (testing)")
+    p = sub.add_parser("status", help="pot, holdings, targets and the last run")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    p = sub.add_parser("doctor", help="check the setup without touching money")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    p.add_argument("--go-live", action="store_true", help="run the paper go-live checklist (phase 9)")
     p = sub.add_parser("enroll", help="link your bank with Teller Connect (runs on your computer)")
     p.add_argument("--app-id", default=os.environ.get("TELLER_APPLICATION_ID", ""))
     p.add_argument("--environment", default="development", choices=("sandbox", "development", "production"))
@@ -94,6 +102,16 @@ def main(argv: list[str] | None = None) -> int:
         except config_mod.ConfigError as e:
             parser.error(str(e))
         return 0
+    if args.command in ("invest", "status", "doctor"):
+        from . import jobs
+        if args.command == "invest":
+            return jobs.run_invest(args.state, args.date)
+        if args.command == "status":
+            return jobs.status(args.state)
+        if args.go_live:
+            print("The go-live checklist arrives in phase 9 (see docs/PLAN.md).")
+            return 2
+        return jobs.doctor(args.state)
     if args.command == "enroll":
         if not args.app_id:
             parser.error("pass --app-id or set TELLER_APPLICATION_ID (from your Teller dashboard)")
