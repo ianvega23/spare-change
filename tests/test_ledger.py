@@ -11,7 +11,7 @@ class LedgerTests(TempDirCase):
         with open(self.ledger_path) as f:
             first_line = f.readline()
         led.append("buy", date="2026-01-07", batch_id="x", symbol="VTI", notional_cents=100,
-                   client_order_id="spare-1", status="filled", qty="0.01", price_cents=10_000)
+                   client_order_id="spare-1", status="filled", qty="0.01", price="100.00")
         with open(self.ledger_path) as f:
             self.assertEqual(f.readline(), first_line)  # earlier lines untouched
         again = Ledger(self.ledger_path)
@@ -26,7 +26,7 @@ class LedgerTests(TempDirCase):
         led = self.ledger()
         led.append("roundup", txn_id="a", date="2026-01-05", cents=75, amount_cents=425)
         led.append("buy", date="2026-01-07", batch_id="x", symbol="VTI", notional_cents=75,
-                   client_order_id="spare-1", status="filled", qty="0", price_cents=1)
+                   client_order_id="spare-1", status="filled", qty="0", price="1.00")
         led.append("roundup", txn_id="b", date="2026-01-08", cents=50, amount_cents=150)
         self.assertEqual(led.unbatched_roundup_ids(), ["b"])
         self.assertEqual(led.last_batch_id(), "x")

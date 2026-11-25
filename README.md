@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phase 1 of 10 (the money engine) is built and tested offline. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 and 2 of 10 (the money engine and the Alpaca paper adapter) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -74,12 +74,25 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/guard.py` | Every guardrail as a pure function: allowlist, caps, weights, small vs big change, no sells |
 | `spare/core/ledger.py` | Append-only JSONL ledger; pot, holdings and seen transactions are derived from it |
 | `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |
+| `spare/core/broker_alpaca.py` | Alpaca Trading API over stdlib HTTP: cash, clock, assets, notional orders, order list; paper unless explicitly unlocked |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
 
 `spare/core` uses only the Python standard library and never imports the AI or bot code. Tests
 enforce both rules.
+
+## Check your Alpaca paper account
+
+With your **paper** keys in environment variables (never in a file you commit):
+
+```bash
+export APCA_API_KEY_ID=...  APCA_API_SECRET_KEY=...
+python -m spare alpaca-check              # read-only: cash, market clock, each ETF tradable + fractionable
+python -m spare paper-order --dollars 5   # one $5 paper buy of VTI, then finds it again by its id
+```
+
+Test orders are tagged `spare-test-`, so the weekly job neither counts them nor flags them as unknown.
 
 ## Use your own copy privately
 
@@ -92,7 +105,7 @@ hold your ledger and holdings.
 | Phase | What | Status |
 |---|---|---|
 | 1 | Money engine, ledger, guardrails, demo (no network) | done |
-| 2 | Alpaca adapter (paper) | |
+| 2 | Alpaca adapter (paper) | done |
 | 3 | Teller (Chase) adapter and enrollment | |
 | 4 | `invest` workflow and state branch | |
 | 5 | Telegram bot and onboarding | |

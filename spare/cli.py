@@ -1,4 +1,4 @@
-"""Command line: python -m spare <command>. Phase 1 ships `demo`; the rest arrive in later phases."""
+"""Command line: python -m spare <command>."""
 from __future__ import annotations
 
 import argparse
@@ -73,6 +73,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--buy-day", default="monday", help="weekday to invest the week's round-ups")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--ledger", default=None, help="ledger path (default: a temp file)")
+    sub.add_parser("alpaca-check", help="read-only check of your Alpaca paper account")
+    p = sub.add_parser("paper-order", help="place one small Alpaca paper buy and reconcile it")
+    p.add_argument("--symbol", default="VTI")
+    p.add_argument("--dollars", type=int, default=5)
     for name in LATER:
         sub.add_parser(name, help=f"coming in phase {LATER[name]}")
     args = parser.parse_args(argv)
@@ -83,5 +87,16 @@ def main(argv: list[str] | None = None) -> int:
         except config_mod.ConfigError as e:
             parser.error(str(e))
         return 0
+    if args.command in ("alpaca-check", "paper-order"):
+        from . import alpaca_tools
+        from .core.broker import BrokerError
+        broker = alpaca_tools.paper_broker_from_env()
+        try:
+            if args.command == "alpaca-check":
+                return alpaca_tools.alpaca_check(broker)
+            return alpaca_tools.paper_order(broker, args.symbol.upper(), args.dollars * 100)
+        except BrokerError as e:
+            print(f"Alpaca error: {e}")
+            return 1
     print(f"`{args.command}` arrives in phase {LATER[args.command]} (see docs/PLAN.md).")
     return 2

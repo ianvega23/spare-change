@@ -60,27 +60,36 @@ class Ledger:
     def of_type(self, type: str) -> list[dict]:
         return [e for e in self._events if e["type"] == type]
 
+    def voided_order_ids(self) -> set[str]:
+        """Buys we recorded that the broker later canceled, expired or rejected unfilled."""
+        return {e["client_order_id"] for e in self.of_type("reconciled") if e.get("void")}
+
+    def buys(self) -> list[dict]:
+        """Buy events that really happened (voided ones excluded)."""
+        voided = self.voided_order_ids()
+        return [e for e in self.of_type("buy") if e["client_order_id"] not in voided]
+
     def seen_txn_ids(self) -> set[str]:
         return {e["txn_id"] for e in self.of_type("roundup")}
 
     def pot_cents(self) -> int:
         """Round-ups collected minus everything invested."""
         return (sum(e["cents"] for e in self.of_type("roundup"))
-                - sum(e["notional_cents"] for e in self.of_type("buy")))
+                - sum(e["notional_cents"] for e in self.buys()))
 
     def invested_in_month_cents(self, month: str) -> int:
         """month is 'YYYY-MM'."""
-        return sum(e["notional_cents"] for e in self.of_type("buy") if e["date"].startswith(month))
+        return sum(e["notional_cents"] for e in self.buys() if e["date"].startswith(month))
 
     def holdings_cents(self) -> dict[str, int]:
         """Cost basis per symbol (v1 never sells)."""
         out: dict[str, int] = {}
-        for e in self.of_type("buy"):
+        for e in self.buys():
             out[e["symbol"]] = out.get(e["symbol"], 0) + e["notional_cents"]
         return out
 
     def last_buy_date(self) -> str | None:
-        buys = self.of_type("buy")
+        buys = self.buys()
         return max(e["date"] for e in buys) if buys else None
 
     def last_batch_id(self) -> str:

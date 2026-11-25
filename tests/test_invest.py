@@ -168,10 +168,36 @@ class InvestTests(TempDirCase):
 
     def test_unknown_order_alert(self):
         broker = FakeBroker()
-        broker.orders["someone-else"] = Order("someone-else", "TSLA", 100_000, "filled")
+        broker.orders["someone-else"] = Order("someone-else", "TSLA", 100_000, "filled",
+                                              submitted_date=MONDAY)
         r = self.run_once(ListBank(purchases(3)), broker, cfg=from_dict({}))
         self.assertTrue(any("unknown order" in e for e in r.errors))
         self.assertEqual(self.ledger().pot_cents(), 297)  # not counted as ours
+        r = self.run_once(ListBank(purchases(3)), broker, cfg=from_dict({}))
+        self.assertFalse(any("unknown order" in e for e in r.errors))  # alerted once, not every run
+
+    def test_order_that_never_filled_gives_money_back(self):
+        broker = FakeBroker()
+        bank = ListBank(purchases(8))
+        self.run_once(bank, broker)
+        coid = next(iter(broker.orders))
+        o = broker.orders[coid]
+        broker.orders[coid] = Order(o.client_order_id, o.symbol, o.notional_cents, "canceled",
+                                    "0", None, o.submitted_date)
+        r = self.run_once(bank, broker, day=TUESDAY)
+        self.assertEqual(r.pot_cents, o.notional_cents)
+        self.assertTrue(any("canceled" in e for e in r.errors))
+        self.assertEqual(self.ledger().voided_order_ids(), {coid})
+        r = self.run_once(bank, broker, day=NEXT_MONDAY)  # voided once, then rebought
+        self.assertEqual(r.status, "bought")
+        self.assertEqual(r.pot_cents, 0)
+
+    def test_dead_order_missing_from_ledger_is_not_recorded(self):
+        broker = FakeBroker()
+        broker.orders["spare-dead"] = Order("spare-dead", "VTI", 500, "rejected", "0", None, MONDAY)
+        r = self.run_once(ListBank(purchases(3)), broker, cfg=from_dict({}))
+        self.assertEqual(r.pot_cents, 297)
+        self.assertEqual(self.ledger().of_type("buy"), [])
 
     def test_qty_has_no_floats(self):
-        self.assertEqual(invest.qty_from(1_750, 31_000), "0.056452")
+        self.assertEqual(invest.qty_from(1_750, 31_000), "0.056451613")

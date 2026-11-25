@@ -15,6 +15,8 @@ from .config import Config
 from .ledger import Ledger
 
 FETCH_DAYS = 14
+RECONCILE_DAYS = 30
+TEST_ORDER_PREFIX = "spare-test-"
 
 
 @dataclass
@@ -32,14 +34,25 @@ def reconcile(ledger: Ledger, broker: Broker, day: str) -> list[str]:
     that this tool didn't place. Returns alert messages."""
     alerts = []
     known = ledger.client_order_ids()
+    voided = ledger.voided_order_ids()
+    alerted = {e.get("client_order_id") for e in ledger.of_type("alert")}
     batch = engine.batch_id(ledger.last_batch_id(), ledger.unbatched_roundup_ids())
-    for order in broker.list_orders():
-        if not order.client_order_id.startswith("spare-"):
-            msg = f"unknown order in your account: {order.symbol} (possible leaked key)"
-            alerts.append(msg)
-            ledger.append("alert", message=msg, client_order_id=order.client_order_id)
-        elif order.client_order_id not in known:
-            ledger.append("reconciled", client_order_id=order.client_order_id)
+    since = (date.fromisoformat(day) - timedelta(days=RECONCILE_DAYS)).isoformat()
+    for order in broker.list_orders(since=since):
+        coid = order.client_order_id or ""
+        if coid.startswith(TEST_ORDER_PREFIX):
+            continue  # a manual `spare paper-order` setup test: ours, but not part of the pot
+        if not coid.startswith("spare-"):
+            if coid not in alerted:  # alert once per order, not on every run
+                msg = f"unknown order in your account: {order.side} {order.symbol} (possible leaked key)"
+                alerts.append(msg)
+                ledger.append("alert", message=msg, client_order_id=coid)
+        elif coid in known and order.dead and coid not in voided:
+            # We recorded this buy, but it never filled: give the money back to the pot.
+            ledger.append("reconciled", client_order_id=coid, void=True, status=order.status)
+            alerts.append(f"order for {order.symbol} was {order.status}; its money is back in the pot")
+        elif coid not in known and not order.dead:
+            ledger.append("reconciled", client_order_id=coid)
             _record_buy(ledger, order, batch, order.submitted_date or day)
     return alerts
 
@@ -47,8 +60,7 @@ def reconcile(ledger: Ledger, broker: Broker, day: str) -> list[str]:
 def _record_buy(ledger: Ledger, order: Order, batch: str, day: str) -> None:
     ledger.append("buy", date=day, batch_id=batch, symbol=order.symbol,
                   notional_cents=order.notional_cents, client_order_id=order.client_order_id,
-                  status=order.status, qty=order.filled_qty,
-                  price_cents=order.filled_avg_price_cents)
+                  status=order.status, qty=order.filled_qty, price=order.filled_avg_price)
 
 
 def collect_roundups(ledger: Ledger, bank: Bank, cfg: Config, day: str) -> int:
@@ -130,5 +142,5 @@ def run(cfg: Config, ledger: Ledger, bank: Bank, broker: Broker, targets: dict[s
 
 
 def qty_from(notional_cents: int, price_cents: int) -> str:
-    """Fractional share quantity as a decimal string (6 places), without floats."""
-    return str((Decimal(notional_cents) / Decimal(price_cents)).quantize(Decimal("0.000001")))
+    """Fractional share quantity as a decimal string (9 places, Alpaca's limit), without floats."""
+    return str((Decimal(notional_cents) / Decimal(price_cents)).quantize(Decimal("0.000000001")))
