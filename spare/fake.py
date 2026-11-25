@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+from decimal import Decimal
 from datetime import date, timedelta
 
 from .core.broker import DuplicateOrder, Order
@@ -77,10 +78,10 @@ class FakeBroker:
             raise DuplicateOrder(client_order_id)
         price = self.prices.get(symbol, 10_000)
         order = Order(client_order_id, symbol, notional_cents, "filled",
-                      qty_from(notional_cents, price), price, day)
+                      qty_from(notional_cents, price), str(Decimal(price) / 100), day)
         self.orders[client_order_id] = order
         self._cash -= notional_cents
         return order
 
-    def list_orders(self) -> list[Order]:
-        return list(self.orders.values())
+    def list_orders(self, since: str | None = None) -> list[Order]:
+        return [o for o in self.orders.values() if not since or o.submitted_date >= since]

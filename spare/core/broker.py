@@ -5,8 +5,16 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
-class DuplicateOrder(Exception):
+class BrokerError(Exception):
+    """The broker refused a request or couldn't be reached. Never retried blindly for orders."""
+
+
+class DuplicateOrder(BrokerError):
     """The broker already has an order with this client_order_id."""
+
+
+# Order statuses that ended without buying anything. Anything else counts as money committed.
+DEAD_STATUSES = frozenset({"canceled", "expired", "rejected", "suspended"})
 
 
 @dataclass(frozen=True)
@@ -15,9 +23,15 @@ class Order:
     symbol: str
     notional_cents: int
     status: str  # "filled", "accepted", ...
-    filled_qty: str = "0"  # decimal string, never a float
-    filled_avg_price_cents: int | None = None
+    filled_qty: str = "0"  # decimal string, kept exactly as the broker sent it
+    filled_avg_price: str | None = None  # decimal string, kept exactly as the broker sent it
     submitted_date: str = ""
+    side: str = "buy"
+
+    @property
+    def dead(self) -> bool:
+        """Ended without a fill (canceled, expired, rejected)."""
+        return self.status in DEAD_STATUSES and self.filled_qty in ("0", "", None)
 
 
 class Broker(Protocol):
@@ -36,4 +50,6 @@ class Broker(Protocol):
         """A notional market day order. Raises DuplicateOrder if the id was already used."""
         ...
 
-    def list_orders(self) -> list[Order]: ...
+    def list_orders(self, since: str | None = None) -> list[Order]:
+        """Recent orders, all statuses. `since` is an ISO date."""
+        ...
