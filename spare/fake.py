@@ -85,3 +85,12 @@ class FakeBroker:
 
     def list_orders(self, since: str | None = None) -> list[Order]:
         return [o for o in self.orders.values() if not since or o.submitted_date >= since]
+
+    def positions_cents(self) -> dict[str, int]:
+        qty: dict[str, Decimal] = {}
+        for o in self.orders.values():
+            qty[o.symbol] = qty.get(o.symbol, Decimal(0)) + Decimal(o.filled_qty)
+        return {s: int(q * self.prices.get(s, 10_000)) for s, q in qty.items() if q}
+
+    def latest_price(self, symbol: str) -> str | None:
+        return str(Decimal(self.prices.get(symbol, 10_000)) / 100)

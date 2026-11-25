@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -15,6 +16,15 @@ class Transaction:
     description: str
     amount_cents: int  # positive = money spent; credits and refunds are negative or zero
     posted: bool = True
+
+
+_LONG_NUMBER = re.compile(r"[#*xX]*\d[\d\- ]{2,}\d")  # 4+ digits, alone or in groups
+
+
+def clean_merchant(description: str) -> str:
+    """The merchant text kept for categorizing: card, account and reference numbers removed."""
+    text = _LONG_NUMBER.sub("", description or "")
+    return " ".join(text.split())[:60]
 
 
 def round_up_cents(amount_cents: int) -> int:

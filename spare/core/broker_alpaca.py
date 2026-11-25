@@ -23,6 +23,7 @@ from .broker import BrokerError, DuplicateOrder, Order
 from .http import NetworkError, Response, Transport, header, make_transport
 
 BASE_URLS = {"paper": "https://paper-api.alpaca.markets", "live": "https://api.alpaca.markets"}
+DATA_URL = "https://data.alpaca.markets"  # market data, same host for paper and live
 MAX_GET_ATTEMPTS = 4
 RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
 
@@ -80,12 +81,13 @@ class AlpacaBroker:
 
     # ---- HTTP ---------------------------------------------------------------------------
 
-    def _url(self, path: str, params: dict | None = None) -> str:
+    def _url(self, path: str, params: dict | None = None, base: str | None = None) -> str:
         query = "?" + urllib.parse.urlencode(params) if params else ""
-        return self._base + path + query
+        return (base or self._base) + path + query
 
-    def _get(self, path: str, params: dict | None = None, *, allow_404: bool = False):
-        url = self._url(path, params)
+    def _get(self, path: str, params: dict | None = None, *, allow_404: bool = False,
+             base: str | None = None):
+        url = self._url(path, params, base)
         for attempt in range(1, MAX_GET_ATTEMPTS + 1):
             try:
                 resp = self._transport("GET", url, dict(self._headers), None)
@@ -179,6 +181,21 @@ class AlpacaBroker:
             if len(page) < 500:
                 return orders
             params["after"] = page[-1]["submitted_at"]  # next page, oldest first
+
+    def positions_cents(self) -> dict[str, int]:
+        return {p.get("symbol", ""): dollars_to_cents(p.get("market_value"))
+                for p in self._get("/v2/positions") if p.get("symbol")}
+
+    def latest_price(self, symbol: str) -> str | None:
+        data = self._get(f"/v2/stocks/{urllib.parse.quote(symbol, safe='')}/trades/latest",
+                         base=DATA_URL, allow_404=True)
+        price = ((data or {}).get("trade") or {}).get("p")
+        if price in (None, ""):
+            return None
+        try:
+            return str(Decimal(str(price)))
+        except InvalidOperation:
+            raise BrokerError(f"unexpected price from Alpaca: {price!r}") from None
 
 
 def _parse_order(data: dict) -> Order:

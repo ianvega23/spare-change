@@ -68,7 +68,7 @@ jobs:
         if: always()   # record what happened even when the run failed
         run: |
           cd state
-          for f in ledger.jsonl last_run.json outbox; do
+          for f in ledger.jsonl last_run.json outbox shadow.jsonl valuation.json; do
             if [ -e "$f" ]; then git add -- "$f"; fi
           done
           if git diff --cached --quiet; then

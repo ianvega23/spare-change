@@ -106,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--date", default=None, help="pretend today is this ISO date (testing)")
     p = sub.add_parser("brain", help="the weekly allocation review (what the Sunday job runs)")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    p = sub.add_parser("weekly", help="the Sunday update in Telegram (what the Sunday job runs)")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p = sub.add_parser("status", help="pot, holdings, targets and the last run")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p = sub.add_parser("doctor", help="check the setup without touching money")
@@ -166,9 +168,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Sent {r.sent}, offered {r.proposals_offered} proposal(s), decisions {r.decisions or 'none'}, "
               f"commands {r.commands or 'none'}, ignored {r.ignored_other_chats} message(s) from other chats.")
         return 0
-    if args.command == "brain":
+    if args.command in ("brain", "weekly"):
         from .brain import job
-        return job.run_brain(args.state)
+        return job.run_brain(args.state) if args.command == "brain" else job.run_weekly(args.state)
     if args.command in ("invest", "status", "doctor"):
         from . import jobs
         if args.command == "invest":

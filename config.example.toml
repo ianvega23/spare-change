@@ -19,6 +19,8 @@ allow_stocks = false    # true = individual S&P 500 stocks may be proposed
 allocator_model = "claude-opus-5-5"  # picks the weekly allocation
 cheap_model = "claude-haiku-5-5"     # categorizing and the weekly summary (phase 7)
 ai_monthly_budget = 2.00             # the brain job skips once this month's AI spend reaches it
+send_merchants_to_ai = true          # false = merchant names never leave GitHub; the weekly update
+                                     # then shows no spending categories beyond simple rules
 
 [limits]                # optional; each value may only be stricter than the default
 # min_holdings = 5

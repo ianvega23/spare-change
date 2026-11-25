@@ -72,7 +72,7 @@ def collect_roundups(ledger: Ledger, bank: Bank, cfg: Config, day: str) -> int:
             continue  # pending waits until posted; credits never change the pot
         cents = engine.roundup_for(txn, cfg.multiplier)
         ledger.append("roundup", txn_id=txn.id, date=txn.date, cents=cents,
-                      amount_cents=txn.amount_cents)
+                      amount_cents=txn.amount_cents, merchant=engine.clean_merchant(txn.description))
         seen.add(txn.id)
         added += 1
     return added
