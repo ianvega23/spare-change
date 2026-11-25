@@ -27,6 +27,10 @@ class Config:
     buy_weekday: int = 0  # 0 = Monday ... 4 = Friday
     monthly_cap_cents: int = guard.DEFAULT_MONTHLY_CAP_CENTS
     limits: guard.Limits = field(default_factory=guard.Limits)
+    bank: str = "teller"
+    bank_environment: str = "production"
+    bank_account_id: str = ""
+    teller_spending_sign: str = "negative"
 
 
 def dollars_to_cents(value, name: str) -> int:
@@ -42,7 +46,8 @@ def dollars_to_cents(value, name: str) -> int:
 
 
 _TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_day", "monthly_cap",
-             "allow_stocks", "limits"}
+             "allow_stocks", "limits", "bank", "bank_environment",
+             "bank_account_id", "teller_spending_sign"}
 _LIMIT_KEYS = {"min_holdings", "max_etf_weight", "max_stock_weight", "max_stocks_total"}
 
 
@@ -64,6 +69,19 @@ def from_dict(raw: dict) -> Config:
     if not isinstance(buy_day, str) or buy_day.lower() not in WEEKDAYS:
         raise ConfigError("buy_day must be a weekday name, monday to friday")
 
+    bank = raw.get("bank", "teller")
+    if bank not in ("teller", "plaid"):
+        raise ConfigError('bank must be "teller" or "plaid"')
+    bank_env = raw.get("bank_environment", "production")
+    if bank_env not in ("sandbox", "development", "production"):
+        raise ConfigError("bank_environment must be sandbox, development or production")
+    sign = raw.get("teller_spending_sign", "negative")
+    if sign not in ("negative", "positive"):
+        raise ConfigError('teller_spending_sign must be "negative" or "positive"')
+    account = raw.get("bank_account_id", "")
+    if not isinstance(account, str):
+        raise ConfigError("bank_account_id must be text")
+
     limits = guard.Limits(allow_stocks=raw.get("allow_stocks", False),
                           **{k: raw_limits[k] for k in _LIMIT_KEYS if k in raw_limits})
     cfg = Config(
@@ -74,6 +92,10 @@ def from_dict(raw: dict) -> Config:
         buy_weekday=WEEKDAYS.index(buy_day.lower()),
         monthly_cap_cents=dollars_to_cents(raw.get("monthly_cap", 200), "monthly_cap"),
         limits=limits,
+        bank=bank,
+        bank_environment=bank_env,
+        bank_account_id=account,
+        teller_spending_sign=sign,
     )
     errors = guard.validate_settings(buy_weekday=cfg.buy_weekday,
                                      multiplier=cfg.multiplier,

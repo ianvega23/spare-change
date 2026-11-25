@@ -1,0 +1,23 @@
+[
+  {"id": "txn_001", "account_id": "acc_checking1", "date": "2026-03-01", "description": "COFFEE SHOP 123",
+   "amount": "-4.25", "type": "card_payment", "status": "posted", "running_balance": "995.75",
+   "details": {"processing_status": "complete", "category": "dining", "counterparty": {"type": "organization", "name": "COFFEE SHOP"}}},
+  {"id": "txn_002", "account_id": "acc_checking1", "date": "2026-03-01", "description": "GROCERY STORE",
+   "amount": "-10.01", "type": "card_payment", "status": "posted", "running_balance": "985.74",
+   "details": {"processing_status": "complete", "category": "groceries", "counterparty": null}},
+  {"id": "txn_003", "account_id": "acc_checking1", "date": "2026-03-02", "description": "GAS STATION",
+   "amount": "-40.00", "type": "card_payment", "status": "posted", "running_balance": "945.74",
+   "details": {"processing_status": "complete", "category": "fuel", "counterparty": null}},
+  {"id": "txn_004", "account_id": "acc_checking1", "date": "2026-03-02", "description": "PAYROLL ACME",
+   "amount": "1850.00", "type": "deposit", "status": "posted", "running_balance": "2795.74",
+   "details": {"processing_status": "complete", "category": "income", "counterparty": null}},
+  {"id": "txn_005", "account_id": "acc_checking1", "date": "2026-03-02", "description": "ONLINE STORE REFUND",
+   "amount": "23.99", "type": "card_payment", "status": "posted", "running_balance": "2819.73",
+   "details": {"processing_status": "complete", "category": "shopping", "counterparty": null}},
+  {"id": "txn_006", "account_id": "acc_checking1", "date": "2026-03-03", "description": "BAKERY",
+   "amount": "-3.10", "type": "card_payment", "status": "pending", "running_balance": null,
+   "details": {"processing_status": "pending", "category": null, "counterparty": null}},
+  {"id": "txn_007", "account_id": "acc_checking1", "date": "2026-03-03", "description": "TRANSFER TO SAVINGS",
+   "amount": "-200.00", "type": "transfer", "status": "posted", "running_balance": "2619.73",
+   "details": {"processing_status": "complete", "category": null, "counterparty": null}}
+]

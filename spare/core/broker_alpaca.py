@@ -14,47 +14,21 @@ from __future__ import annotations
 
 import json
 import random
-import socket
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
-from dataclasses import dataclass
 from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Callable
 
 from .broker import BrokerError, DuplicateOrder, Order
+from .http import NetworkError, Response, Transport, header, make_transport
 
 BASE_URLS = {"paper": "https://paper-api.alpaca.markets", "live": "https://api.alpaca.markets"}
-TIMEOUT_SECONDS = 20
 MAX_GET_ATTEMPTS = 4
 RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
-@dataclass(frozen=True)
-class Response:
-    status: int
-    body: bytes
-    headers: dict
-
-
-# A transport sends one HTTP request. Tests swap in a fake; production uses urllib.
-Transport = Callable[[str, str, dict, bytes | None], Response]
-
-
-class _NetworkError(Exception):
-    pass
-
-
-def urllib_transport(method: str, url: str, headers: dict, body: bytes | None) -> Response:
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as r:
-            return Response(r.status, r.read(), dict(r.headers))
-    except urllib.error.HTTPError as e:
-        return Response(e.code, e.read() or b"", dict(e.headers or {}))
-    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
-        raise _NetworkError(type(e).__name__) from None
+urllib_transport = make_transport()
+_NetworkError = NetworkError  # kept for readability in tests
 
 
 def dollars_to_cents(value: str | None) -> int:
@@ -135,7 +109,7 @@ class AlpacaBroker:
     def _backoff(self, attempt: int, resp: Response | None) -> None:
         delay = min(8.0, 2.0 ** (attempt - 1)) + random.uniform(0, 0.25)
         if resp is not None:
-            retry_after = {k.lower(): v for k, v in resp.headers.items()}.get("retry-after")
+            retry_after = header(resp, "retry-after")
             if retry_after and retry_after.isdigit():
                 delay = max(delay, min(30.0, float(retry_after)))
         self._sleep(delay)

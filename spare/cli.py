@@ -73,6 +73,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--buy-day", default="monday", help="weekday to invest the week's round-ups")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--ledger", default=None, help="ledger path (default: a temp file)")
+    p = sub.add_parser("enroll", help="link your bank with Teller Connect (runs on your computer)")
+    p.add_argument("--app-id", default=os.environ.get("TELLER_APPLICATION_ID", ""))
+    p.add_argument("--environment", default="development", choices=("sandbox", "development", "production"))
+    p.add_argument("--relink", default=None, metavar="ENROLLMENT_ID", help="repair an existing link")
+    p.add_argument("--dir", default="teller", help="where to save the token (git-ignored)")
+    p = sub.add_parser("bank-check", help="read-only look at your linked bank account")
+    p.add_argument("--config", default="config.toml")
     sub.add_parser("alpaca-check", help="read-only check of your Alpaca paper account")
     p = sub.add_parser("paper-order", help="place one small Alpaca paper buy and reconcile it")
     p.add_argument("--symbol", default="VTI")
@@ -87,6 +94,21 @@ def main(argv: list[str] | None = None) -> int:
         except config_mod.ConfigError as e:
             parser.error(str(e))
         return 0
+    if args.command == "enroll":
+        if not args.app_id:
+            parser.error("pass --app-id or set TELLER_APPLICATION_ID (from your Teller dashboard)")
+        from . import enroll
+        return enroll.run(args.app_id, args.environment, args.dir, args.relink)
+    if args.command == "bank-check":
+        from . import bank_tools
+        from .core.bank import BankError
+        from .core.sources import bank_from_env
+        cfg = config_mod.load(args.config) if os.path.exists(args.config) else config_mod.from_dict({})
+        try:
+            return bank_tools.bank_check(bank_from_env(cfg))
+        except BankError as e:
+            print(f"Bank error: {e}")
+            return 1
     if args.command in ("alpaca-check", "paper-order"):
         from . import alpaca_tools
         from .core.broker import BrokerError

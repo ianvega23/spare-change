@@ -1,0 +1,11 @@
+[
+  {"enrollment_id": "enr_test000", "institution": {"name": "Chase", "id": "chase"}, "type": "depository",
+   "name": "Total Checking", "subtype": "checking", "currency": "USD", "id": "acc_checking1",
+   "last_four": "1234", "status": "open"},
+  {"enrollment_id": "enr_test000", "institution": {"name": "Chase", "id": "chase"}, "type": "depository",
+   "name": "Savings", "subtype": "savings", "currency": "USD", "id": "acc_savings1",
+   "last_four": "5678", "status": "open"},
+  {"enrollment_id": "enr_test000", "institution": {"name": "Chase", "id": "chase"}, "type": "credit",
+   "name": "Freedom", "subtype": "credit_card", "currency": "USD", "id": "acc_credit1",
+   "last_four": "9012", "status": "open"}
+]
