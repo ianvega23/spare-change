@@ -10,11 +10,18 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python: ["3.11", "3.13"]
+        include:   # setup runs on your own computer, so check Windows and macOS too
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:

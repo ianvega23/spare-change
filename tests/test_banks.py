@@ -208,7 +208,8 @@ class EnrollTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = enroll.save_token(pathlib.Path(d) / "teller", {"accessToken": TOKEN, "enrollmentId": "enr_1"})
             self.assertEqual(path.read_text().strip(), TOKEN)
-            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+            if os.name == "posix":  # Windows has no owner-only mode bits; the file sits in your user folder
+                self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
             with self.assertRaises(ValueError):
                 enroll.save_token(pathlib.Path(d), {"accessToken": "has space"})
 

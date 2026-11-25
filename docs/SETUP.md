@@ -4,11 +4,16 @@ This guide takes you from nothing to your first **dry run**, which is a run that
 purchases and plans a buy but places no order. Plan on about 45 minutes. You don't need to write
 any code, but you will type a few commands into a terminal. Copy them exactly as written.
 
+It works on **Windows, Mac and Linux**. Where the steps differ, there's a section for each. The
+commands are the same everywhere, with one difference: on **Windows** you type `python`, and on
+**Mac or Linux** you type `python3`. This guide writes `python`, so on a Mac or Linux add the 3.
+
 **Nothing in this guide can spend real money.** You start on Alpaca's *paper* account (practice
 money), and dry run is on until you deliberately turn it off later.
 
-**Never paste a key or token into a chat, an issue, an email or a file you commit.** The setup
-command asks for each one with your typing hidden and sends it straight to GitHub.
+**Never paste a key or token into a chat, an issue, an email or a file you commit.** Whenever a
+command needs a key, it asks for it with your typing hidden. Paste it (Ctrl+V on Windows, Cmd+V on a
+Mac, or right-click) and press Enter. Nothing appears on screen while you paste, and that's on purpose.
 
 | Step | What you do | Time |
 |---|---|---|
@@ -49,21 +54,61 @@ From here on, "your copy" means this new private repository, not the public one.
 
 ## Step 2: Get the code on your computer
 
-You need three free tools. On a Mac, open the **Terminal** app. On Windows, install
-[WSL](https://learn.microsoft.com/windows/wsl/install) and use its Ubuntu terminal, because the
-commands below are written for Mac and Linux.
+You need three free tools: **Python**, **Git** and the **GitHub CLI**.
 
-1. **Python 3.11 or newer.** Check with `python3 --version`. If it's older or missing, install it from
-   <https://www.python.org/downloads/>.
-2. **Git 2.42 or newer.** Check with `git --version`. On a Mac, the version Apple installs may be
-   older; `brew install git` gets a current one (Homebrew is at <https://brew.sh>).
-3. **The GitHub CLI.** Install it from <https://cli.github.com>, then sign in:
+### On Windows
 
-   ```bash
-   gh auth login
+1. Open **PowerShell**: press the Windows key, type `PowerShell`, and press Enter.
+2. Install the three tools with `winget`, which is built into Windows 10 and 11:
+
+   ```powershell
+   winget install -e --id Python.Python.3.13
+   winget install -e --id Git.Git
+   winget install -e --id GitHub.cli
    ```
 
-   Choose **GitHub.com**, then **HTTPS**, then **Login with a web browser**, and follow the prompts.
+   Say yes to any prompts. If `winget` isn't found, install each one from its website instead:
+   <https://www.python.org/downloads/> (tick **Add python.exe to PATH** on the first screen),
+   <https://git-scm.com/download/win> and <https://cli.github.com>.
+3. **Close PowerShell and open it again**, so it finds the new tools. Check them:
+
+   ```powershell
+   python --version
+   git --version
+   gh --version
+   ```
+
+   You need Python 3.11 or newer and Git 2.42 or newer. If `python` opens the Microsoft Store
+   instead, see [Troubleshooting](#troubleshooting).
+
+### On a Mac
+
+1. Open the **Terminal** app (press Cmd+Space, type `Terminal`, press Enter).
+2. Install [Homebrew](https://brew.sh) if you don't have it, then:
+
+   ```bash
+   brew install python git gh
+   ```
+
+   Or install Python from <https://www.python.org/downloads/>, Git with `xcode-select --install`,
+   and the GitHub CLI from <https://cli.github.com>.
+3. Check them with `python3 --version`, `git --version` and `gh --version`. You need Python 3.11 or
+   newer and Git 2.42 or newer.
+
+### On Linux
+
+Install `python3` (3.11 or newer), `git` (2.42 or newer) and `gh` with your package manager. For
+`gh`, see <https://github.com/cli/cli#installation>.
+
+### Everyone: sign in and download your copy
+
+Sign in to GitHub from the terminal:
+
+```bash
+gh auth login
+```
+
+Choose **GitHub.com**, then **HTTPS**, then **Login with a web browser**, and follow the prompts.
 
 Now download your copy and step into it. Replace `YOUR-NAME/spare-change-private` with your copy's
 name:
@@ -71,7 +116,7 @@ name:
 ```bash
 gh repo clone YOUR-NAME/spare-change-private
 cd spare-change-private
-python3 -m spare demo
+python -m spare demo
 ```
 
 The demo runs 12 pretend weeks with a fake bank and broker. If you see weekly lines like
@@ -84,11 +129,8 @@ your data never mixes with the code:
 git worktree add --orphan -b state state
 ```
 
-This creates a `state/` folder. Every command below runs from the main `spare-change-private`
-folder, not from inside `state/`.
-
-> On a Mac, type `python3` wherever this guide says `python3`. If `python3` doesn't work on your
-> system but `python` does, use that instead.
+This creates a `state` folder. Every command below runs from the main `spare-change-private`
+folder, not from inside `state`.
 
 ---
 
@@ -105,12 +147,10 @@ Do each part below, then come back. Keep the browser tabs open; you'll paste val
 4. You see a **Key ID** (it starts with `PK`) and a **Secret Key**. The secret is shown only once,
    so leave this tab open until step 4. If you lose it, just generate new keys.
 
-Want to check them now? This is read-only and places nothing:
+Want to check them now? This is read-only and places nothing. It asks for both keys:
 
 ```bash
-read -rs APCA_API_KEY_ID; export APCA_API_KEY_ID          # paste the Key ID, press Enter (nothing shows)
-read -rs APCA_API_SECRET_KEY; export APCA_API_SECRET_KEY  # paste the Secret Key, press Enter
-python3 -m spare alpaca-check
+python -m spare alpaca-check
 ```
 
 ### 3b. Teller (reads your bank's purchases)
@@ -121,12 +161,14 @@ move money.
 1. Sign up at <https://teller.io> and open the **Dashboard**.
 2. Copy your **Application ID** (it starts with `app_`).
 3. In **Certificates**, create a certificate and download it. You get two files,
-   `certificate.pem` and `private_key.pem`. Make a folder called `teller` inside your
-   `spare-change-private` folder and move both files into it. That folder is never committed.
+   `certificate.pem` and `private_key.pem` (unzip them if they arrive as a zip). Make a folder called
+   `teller` inside your `spare-change-private` folder and move both files into it. That folder is
+   never committed. On Windows you can do this in File Explorer; `spare-change-private` is in your
+   user folder, for example `C:\Users\you\spare-change-private`.
 4. Link your bank. This opens a page in your browser, on your own computer only:
 
    ```bash
-   python3 -m spare enroll --app-id app_YOUR_ID
+   python -m spare enroll --app-id app_YOUR_ID
    ```
 
    Pick your bank, sign in the way you normally do, and choose your checking account. When the page
@@ -134,11 +176,10 @@ move money.
 5. Check that purchases are read the right way round:
 
    ```bash
-   export TELLER_ACCESS_TOKEN=$(cat teller/token.txt) TELLER_CERT=teller/certificate.pem TELLER_KEY=teller/private_key.pem
-   python3 -m spare bank-check
+   python -m spare bank-check
    ```
 
-   It lists the last 14 days. Your card purchases should say **purchase**, and paychecks or
+   It finds the token and both files in the `teller` folder by itself. It lists the last 14 days. Your card purchases should say **purchase**, and paychecks or
    refunds should say **money in**. If they're backwards, see
    [Troubleshooting](#troubleshooting).
 
@@ -150,11 +191,10 @@ Teller doesn't support your bank? Spare Change also works with Plaid; choose `pl
 2. Send `/newbot`, then pick a display name and a username ending in `bot`.
 3. BotFather replies with a **token** like `123456:ABC...`. Keep that chat open.
 4. Open a chat with your new bot and send it any message, for example `hi`.
-5. Find your chat id:
+5. Find your chat id. This asks for the BotFather token:
 
    ```bash
-   read -rs TELEGRAM_BOT_TOKEN; export TELEGRAM_BOT_TOKEN   # paste the BotFather token
-   python3 -m spare telegram-chat-id
+   python -m spare telegram-chat-id
    ```
 
    It prints a number. That's your **chat id**. The bot will only ever answer this chat.
@@ -174,7 +214,7 @@ a mix from your goals each week, and plain code still decides whether that's all
 ## Step 4: Run the setup command
 
 ```bash
-python3 -m spare setup
+python -m spare setup
 ```
 
 It checks that your copy is private, then asks:
@@ -184,16 +224,17 @@ It checks that your copy is private, then asks:
 | Bank link | Press Enter for `teller` (or type `plaid`) |
 | Broker | Press Enter for `alpaca` |
 | Use Claude? | `y` if you did step 3d, otherwise `n` |
-| Set TELLER_ACCESS_TOKEN now? | `y`, then paste the contents of `teller/token.txt` (run `cat teller/token.txt` in another terminal window to see it) |
-| Path to your Teller certificate.pem | `teller/certificate.pem` |
-| Path to your Teller private_key.pem | `teller/private_key.pem` |
+| Set TELLER_ACCESS_TOKEN now? / Use the token saved in teller/token.txt? | `y`, then Enter |
+| Path to your Teller certificate.pem | Press Enter (it uses `teller/certificate.pem`) |
+| Path to your Teller private_key.pem | Press Enter (it uses `teller/private_key.pem`) |
 | Alpaca PAPER key id / secret | Paste each from step 3a |
 | Telegram bot token / chat id | Paste each from step 3c |
 | Anthropic API key | Paste it from step 3d |
 | Turn the scheduled jobs on now? | `y` |
 
 When you paste a secret, **nothing appears on screen**. That's on purpose. Paste once and press
-Enter.
+Enter. If it asks for a file path, you can drag the file into the window or paste a copied path,
+quotes and all.
 
 What it did for you:
 
@@ -204,7 +245,7 @@ What it did for you:
 - Protected your `main` branch, so the jobs can't change the code that handles your money.
 - Turned the jobs on (`SPARE_ENABLED`).
 
-It's safe to run again. It skips anything already set, and `python3 -m spare setup --replace`
+It's safe to run again. It skips anything already set, and `python -m spare setup --replace`
 asks for every secret again.
 
 ---
@@ -216,10 +257,10 @@ and when you'll need the money. Then it asks for the round-up multiplier, your b
 cap, and whether to allow single stocks.
 
 ```bash
-read -rs TELEGRAM_BOT_TOKEN; export TELEGRAM_BOT_TOKEN   # skip if you did this in step 3c, same terminal
-export TELEGRAM_CHAT_ID=YOUR_CHAT_ID
-python3 -m spare onboard
+python -m spare onboard
 ```
+
+It asks for the bot token and your chat id first.
 
 Answer on your phone. When it's done, the terminal prints
 `Saved profile.toml and config.toml in state, and proposal ...`. That's your first suggested mix.
@@ -250,7 +291,7 @@ cd ..
 
    ```bash
    git -C state pull
-   python3 -m spare status
+   python -m spare status
    ```
 
    You see the pot (your saved spare change), your approved mix and the last run.
@@ -277,13 +318,16 @@ locked until the two-week paper checklist (`spare doctor --go-live`) has passed.
 |---|---|
 | `Stopped: ... is public` | You're in the public repository. Make the private copy in step 1 and run setup inside it. |
 | `Stopped: ... environment ...` or HTTP 403/404 during setup | Your plan doesn't include environment secrets for private repositories. Upgrade to GitHub Pro (step 1) and run setup again. It picks up where it left off. |
-| No **Use this template** button | Instead, create an empty **private** repository on GitHub. Then run: `git clone --bare https://github.com/ianvega23/spare-change.git`, `cd spare-change.git`, `git push --mirror https://github.com/YOUR-NAME/spare-change-private.git`, `cd ..`, then `rm -rf spare-change.git`. |
-| `git worktree add --orphan` says unknown option | Your Git is older than 2.42. Update it (step 2). |
-| `python3: No module named spare` | Run the command from inside your `spare-change-private` folder, not from `state/` or elsewhere. |
+| No **Use this template** button | Instead, create an empty **private** repository on GitHub. Then run: `git clone --bare https://github.com/ianvega23/spare-change.git`, `cd spare-change.git`, `git push --mirror https://github.com/YOUR-NAME/spare-change-private.git`, `cd ..`, and delete the `spare-change.git` folder. |
+| Windows: `python` opens the Microsoft Store, or says it isn't found | Use `py` instead of `python` (for example `py -m spare demo`). Or open **Settings → Apps → Advanced app settings → App execution aliases**, turn off the two **python** entries, and reopen PowerShell. |
+| Windows: a tool says "not recognized" right after installing | Close PowerShell and open a new one, so it picks up the new tools. |
+| Windows: pasting into a hidden prompt does nothing | Right-click in the window to paste, then press Enter. |
+| `git worktree add --orphan` says unknown option | Your Git is older than 2.42. Update it (step 2; on Windows, `winget upgrade Git.Git`). |
+| `No module named spare` | Run the command from inside your `spare-change-private` folder, not from `state/` or elsewhere. |
 | `bank-check` shows purchases as **money in** | Your bank signs amounts the other way. Add `teller_spending_sign = "positive"` to `state/config.toml`, then run `bank-check` again. |
-| Teller asks to re-link later (password change, new MFA) | Run `python3 -m spare enroll --app-id app_YOUR_ID --relink ENROLLMENT_ID`, using the id in `teller/enrollment.json`, then `python3 -m spare setup --replace` to store the new token. |
+| Teller asks to re-link later (password change, new MFA) | Run `python -m spare enroll --app-id app_YOUR_ID --relink ENROLLMENT_ID`, using the id in `teller/enrollment.json`, then `python -m spare setup --replace` to store the new token. |
 | `telegram-chat-id` prints "none yet" | Send your bot a message first, then run it again. |
-| The bot never sends anything | Check **Actions → bot** for a red run. The most common cause is a wrong chat id; run `python3 -m spare setup --replace` to fix it. |
+| The bot never sends anything | Check **Actions → bot** for a red run. The most common cause is a wrong chat id; run `python -m spare setup --replace` to fix it. |
 | `spare doctor` on your computer says secrets are missing | That's expected. Your keys are on GitHub, not on your computer. `doctor` checks the keys of the terminal you run it in. |
 | **Actions** shows "workflows disabled" | Click **I understand my workflows, go ahead and enable them**. |
 | I want to stop everything | Send `/pause` to your bot, or run `gh variable set SPARE_ENABLED --body false`. |

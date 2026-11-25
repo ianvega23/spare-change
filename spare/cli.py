@@ -88,6 +88,13 @@ def first_mix(state_dir: str, environ=None, out=print):
     return propose
 
 
+def cfg_bank(path: str) -> str:
+    try:
+        return config_mod.load(path).bank if os.path.exists(path) else "teller"
+    except config_mod.ConfigError:
+        return "teller"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="spare", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -120,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--relink", default=None, metavar="ENROLLMENT_ID", help="repair an existing link")
     p.add_argument("--dir", default="teller", help="where to save the token (git-ignored)")
     p = sub.add_parser("bank-check", help="read-only look at your linked bank account")
-    p.add_argument("--config", default="config.toml")
+    p.add_argument("--config", default=os.path.join("state", "config.toml"))
     sub.add_parser("alpaca-check", help="read-only check of your Alpaca paper account")
     p = sub.add_parser("paper-order", help="place one small Alpaca paper buy and reconcile it")
     p.add_argument("--symbol", default="VTI")
@@ -146,6 +153,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command in ("onboard", "bot", "telegram-chat-id"):
         from .bot import telegram as tg
+        from .askenv import fill
+        wanted = [("TELEGRAM_BOT_TOKEN", "Telegram bot token from @BotFather", True)]
+        if args.command == "onboard":
+            wanted.append(("TELEGRAM_CHAT_ID", "Your Telegram chat id (from `spare telegram-chat-id`)", False))
+        fill(wanted)
         token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
         if not token:
             parser.error("set TELEGRAM_BOT_TOKEN (from BotFather)")
@@ -200,6 +212,13 @@ def main(argv: list[str] | None = None) -> int:
         from . import bank_tools
         from .core.bank import BankError
         from .core.sources import bank_from_env
+        from .askenv import fill, teller_defaults
+        if cfg_bank(args.config) == "plaid":
+            fill([("PLAID_CLIENT_ID", "Plaid client id", False), ("PLAID_SECRET", "Plaid secret", True),
+                  ("PLAID_ACCESS_TOKEN", "Plaid access token", True)])
+        else:
+            teller_defaults()
+            fill([("TELLER_ACCESS_TOKEN", "Teller access token (teller/token.txt)", True)])
         cfg = config_mod.load(args.config) if os.path.exists(args.config) else config_mod.from_dict({})
         try:
             return bank_tools.bank_check(bank_from_env(cfg))
@@ -209,6 +228,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in ("alpaca-check", "paper-order"):
         from . import alpaca_tools
         from .core.broker import BrokerError
+        from .askenv import fill
+        fill([(alpaca_tools.KEY_ENV, "Alpaca PAPER key id (starts with PK)", True),
+              (alpaca_tools.SECRET_ENV, "Alpaca PAPER secret key", True)])
         broker = alpaca_tools.paper_broker_from_env()
         try:
             if args.command == "alpaca-check":

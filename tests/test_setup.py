@@ -27,7 +27,8 @@ class FakeGh:
         self.rulesets = []
         self.fail_on = fail_on
 
-    def __call__(self, cmd, input=None, capture_output=True, text=True, check=False):
+    def __call__(self, cmd, input=None, capture_output=True, text=True, check=False, encoding=None):
+        assert encoding == "utf-8"  # gh speaks UTF-8; Windows would otherwise decode as cp1252
         self.calls.append((cmd, input))
         args = cmd[1:]
         ok = lambda out="": subprocess.CompletedProcess(cmd, 0, out, "")
