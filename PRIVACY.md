@@ -8,14 +8,14 @@ Spare Change server, and the project's authors never see your data.
 - **The `state` branch of your private repo**: the ledger (round-ups, purchase amounts, merchant names
   with card and reference numbers removed, buys), your target allocation, proposals and decisions,
   your three profile sentences, AI call logs and the last market values. Keep the repo private.
-- **GitHub Actions secrets**: your Teller, Alpaca, Telegram and Anthropic keys, each in its own
+- **GitHub Actions secrets**: your Plaid, Alpaca (or Public), Telegram and Anthropic keys, each in its own
   environment, so no job holds more than one provider's key.
 
 ## What goes to each service
 
 | Service | Gets | Never gets |
 |---|---|---|
-| Teller (or Plaid) | your bank login, through their own enrollment page | anything from Spare Change |
+| Plaid | your bank login, through Plaid Link (Plaid's own page) | anything from Spare Change |
 | Alpaca | buy orders and account reads | your bank data, profile or merchants |
 | Telegram | the messages you'd expect: weekly update, buys, proposals, alerts. Totals, fund names and spending categories only | account numbers, full transaction lists |
 | Anthropic (Claude) | **allocation:** your three profile sentences, current weights, the fund list and limits. **Weekly update:** merchant names (for categories) and the week's totals | account numbers, card numbers, balances, prices |
@@ -33,5 +33,5 @@ Anthropic API receives.
 
 ## Deleting your data
 
-Delete the `state` branch (or the whole private repo), revoke the Teller enrollment in your Teller
-dashboard, and delete the API keys at Alpaca, Anthropic and BotFather.
+Delete the `state` branch (or the whole private repo), remove the bank connection in your Plaid
+dashboard (or at <https://my.plaid.com>), and delete the API keys at Alpaca, Anthropic and BotFather.

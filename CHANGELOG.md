@@ -10,7 +10,9 @@ The first release: everything in `docs/PLAN.md` phases 1 to 10. Defaults are dry
   per-holding and total caps, small vs big changes, no selling.
 - Brokers: Alpaca (paper and live) and Public (live only, $5 minimum, orders locked behind the
   go-live gate).
-- Banks: Teller over mutual TLS, Plaid as fallback.
+- Banks: Plaid by default (`spare enroll` opens Plaid Link on `127.0.0.1`; the free Trial plan
+  covers Chase). Teller over mutual TLS stays for existing Teller accounts, since Teller no longer
+  has a public sign-up (ADR 0005).
 - GitHub Actions jobs `invest`, `brain` and `bot`, each with its own environment and keys, sharing a
   `state` branch.
 - Telegram bot: onboarding, signed Approve/Skip proposals, `/status`, `/pause`, `/resume`, Sunday update.

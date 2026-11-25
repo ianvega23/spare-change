@@ -18,12 +18,12 @@ own branch, (d) add a second broker adapter (Public) so the project isn't tied t
 |---|---|---|
 | Weekly batch vs per-transaction | Right call. Alpaca's minimum notional order is $1, most single round-ups are below that, and weekly batching means one order, one fee-free trade, fewer API calls. | Keep. |
 | GitHub Actions vs a server | Right for "free for anyone". No server to patch, free minutes cover it, logs and failure emails come free. | Keep. Local cron stays as the alternative. |
-| Where secrets live | v1 put bank, broker and (soon) LLM keys in one job. If any step is compromised, all keys are exposed. | **Two jobs.** `invest` job holds Teller + Alpaca secrets and runs only stdlib code. `insights` job holds only the Anthropic key and reads the ledger. Secrets are scoped to a GitHub *Environment* limited to the `main` branch, so a PR branch can't read them. |
+| Where secrets live | v1 put bank, broker and (soon) LLM keys in one job. If any step is compromised, all keys are exposed. | **Two jobs.** `invest` job holds bank (Plaid) + Alpaca secrets and runs only stdlib code. `insights` job holds only the Anthropic key and reads the ledger. Secrets are scoped to a GitHub *Environment* limited to the `main` branch, so a PR branch can't read them. |
 | Ledger committed to `main` | Works, but clutters history and means the job needs write access to the code branch. | Commit the ledger to an orphan `ledger` branch. Still counts as repo activity (keeps the cron alive). |
 | Source of truth for "did we already buy?" | v1 already reconciles by `client_order_id`. Good. | Keep; make reconciliation the first step of every run, not a recovery path. |
 | Market closed on Monday (holidays) | A notional `day` market order submitted when the market is closed queues for the next open. Harmless. | Document it; `status` shows queued orders. |
 | Python stdlib only | Great for the money path (no supply-chain risk where keys live). | Keep for `spare/core`. The optional AI extra uses the official `anthropic` SDK, installed from a hash-pinned `requirements-ai.txt` (`pip install --require-hashes`), only in the `insights` job. |
-| Plaid vs Teller | Teller is free for individuals and its auth (mTLS client cert + token) is stronger than an API key alone. Plaid's free Trial is capped at a small number of lifetime Items. | Keep Teller as default. Make the bank source an interface so Plaid can be dropped in. |
+| Plaid vs Teller | Teller is free for individuals and its auth (mTLS client cert + token) is stronger than an API key alone. Plaid's free Trial is capped at a small number of lifetime Items. | Keep Teller as default. Make the bank source an interface so Plaid can be dropped in. **Update 2026-11-25:** Teller no longer offers a public sign-up, so Plaid is now the default. Plaid's Trial plan is free for personal use with 10 real Items (Chase included), plenty for one person. |
 
 ## 3. Safety of each dependency
 
@@ -39,15 +39,17 @@ withdrawals happen in the web dashboard). Mitigations: paper keys until go-live,
 secrets, a separate Alpaca account used only for round-ups, alerts on any order without the `spare-` prefix,
 and rotating keys if a run log ever looks wrong.
 
-**Teller (bank data).** Read-only by default; the access token alone is useless without the
+**Teller (bank data; the original default, now only for existing accounts).** Read-only by default; the access token alone is useless without the
 client certificate and private key (mutual TLS). Free tier has undocumented rate limits (429s), which a
 weekly job will never hit. *Risks:* Teller is a small company, so it could change its free tier or shut down;
 Chase can force a re-link; and big banks have started charging data aggregators (JPMorgan did in 2025), which could
 end up affecting free tiers. Mitigations: keep the bank source behind an interface (Plaid adapter as fallback),
 request only the transactions endpoint, never enable Teller payments, store cert/key/token only as secrets.
 
-**Plaid (fallback only).** Mature and widely audited, used by most fintech apps. It settled a privacy class
-action over data collection in 2022, which is worth knowing. The free tier is too small to be the default.
+**Plaid (default since 2026-11-25).** Mature and widely audited, used by most fintech apps. It settled a privacy class
+action over data collection in 2022, which is worth knowing. The Trial plan (free, personal use, real
+Production data) allows 10 Items; removing one doesn't free a slot, so link only the checking account you
+need. Spare Change requests only the transactions product, never payments or auth.
 
 **GitHub Actions.** Private repo via "Use this template" (not a fork). Pin actions to commit SHAs,
 `permissions:` minimal per job, secrets in an Environment restricted to `main`, Actions disabled for
@@ -94,4 +96,5 @@ one `Broker` interface is also good engineering evidence for a portfolio.
 - Schwab fractional shares: https://www.schwab.com/fractional-shares
 
 Not independently verified this round: Tradier's current fractional status and Teller's exact free-tier
-connection limit. Check both before writing the README.
+connection limit. Check both before writing the README. (2026-11-25: moot for Teller, whose sign-up is closed.)
+- Plaid Trial plan: https://dashboard.plaid.com/trial-plan

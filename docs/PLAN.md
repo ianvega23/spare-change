@@ -16,7 +16,7 @@
 | Money in | Round-ups only, with an optional user-set multiplier (1x, 2x, 3x). |
 | When to buy | **Once a week**: the week's summed round-ups are invested on a set weekday (Monday by default), whatever the amount. |
 | Hosting | GitHub Actions, free tier, private repo. Local cron as an alternative. |
-| Bank | Chase via **Teller** (read-only). Plaid as a fallback adapter. |
+| Bank | Chase via **Plaid** (read-only, free Trial plan). *Amended 2026-11-25:* the plan first chose Teller, but Teller no longer has a public sign-up, so Plaid is the default and Teller stays as an option for existing Teller accounts (ADR 0005). |
 | Broker | **Alpaca**. Public as the backup adapter. |
 | User interface | A **Telegram bot**: onboarding, weekly updates, Approve/Skip buttons. |
 | Onboarding | The bot asks for one short sentence per category: **goals, risk, horizon**. The user types them. |
@@ -45,7 +45,7 @@ Change `MAX_ETF_WEIGHT` in §6 if you want a different number.
 1. **Onboard (once, ~5 minutes, on your laptop):** `python -m spare onboard` starts the Telegram bot
    locally. It asks three questions (goals, risk, horizon), confirms the multiplier and caps, and
    saves a `profile.toml`. Claude proposes a first allocation; you tap **Approve** in Telegram.
-2. **Every weekday (GitHub Actions):** read new posted Chase purchases through Teller, round each one up,
+2. **Every weekday (GitHub Actions):** read new posted Chase purchases through Plaid, round each one up,
    apply the multiplier, add to the **pot**. **Once a week** (on `BUY_DAY`, Monday by default, or the next
    open weekday that week if it's a market holiday), split the whole pot across the approved target
    allocation and buy fractional shares in Alpaca, whatever the amount. A pot under $1 carries over.
@@ -69,7 +69,7 @@ Three jobs with separate secrets. They talk only through files on a `state` bran
 ```
             ┌──────────── GitHub Actions (private repo) ─────────────┐
             │                                                        │
- Chase ─Teller─▶ [invest job]  secrets: Teller, Alpaca               │
+ Chase ─Plaid──▶ [invest job]  secrets: Plaid, Alpaca                │
             │     fetch → round up → pot → guard → buy ──────────────┼──▶ Alpaca
             │        ▲ reads approved targets     │ writes ledger    │
             │        │                            ▼                  │
@@ -88,7 +88,7 @@ Three jobs with separate secrets. They talk only through files on a `state` bran
 
 | Job | Schedule | Secrets | Can it move money? |
 |---|---|---|---|
-| `invest` | weekdays 15:00 UTC + manual | Teller cert/key/token, Alpaca keys | Yes, but only to approved, re-validated targets, within caps |
+| `invest` | weekdays 15:00 UTC + manual | Plaid client id/secret/access token (or Teller cert/key/token), Alpaca keys | Yes, but only to approved, re-validated targets, within caps |
 | `brain` | weekly (Sunday) + after a decision | Anthropic key | No. Writes proposals and summaries only |
 | `bot` | hourly 13:00–03:00 UTC | Telegram bot token | No. Relays messages and records your taps |
 
@@ -109,7 +109,7 @@ spare-change/
 ├── requirements-ai.txt     # hash-pinned; only the brain job installs it
 ├── spare/
 │   ├── core/               # stdlib only. The money path.
-│   │   ├── bank.py  bank_teller.py  bank_plaid.py
+│   │   ├── bank.py  bank_plaid.py  bank_teller.py
 │   │   ├── engine.py       # round-ups, multiplier, pot, weekly buy day, order split
 │   │   ├── guard.py        # every guardrail. Pure functions. Used by brain AND invest.
 │   │   ├── broker.py  broker_alpaca.py  broker_public.py
@@ -148,7 +148,7 @@ Run order:
 1. Load config. Refuse to run on anything invalid. `ENABLED=false` → log and exit 0 (kill switch).
 2. **Reconcile first.** List recent Alpaca orders. Record any `spare-` order missing from the ledger.
    Any order **without** the `spare-` prefix → alert "unknown order in your account" (possible leaked key).
-3. **Fetch** the last 14 days of transactions from Teller. Keep posted debits only. Skip ids in the ledger.
+3. **Fetch** the last 14 days of transactions from the bank (Plaid). Keep posted debits only. Skip ids in the ledger.
 4. **Round up** each purchase in integer cents (`$4.25 → 75¢`, `$5.00 → 0¢`), times the multiplier.
    Append each to the ledger as `roundup` events. The pot is the sum of round-ups minus invested amounts.
 5. **Weekly buy:** if today is before `BUY_DAY` (Monday default), a weekend, or this week already had a buy → stop.
@@ -172,7 +172,7 @@ after the paper checklist in §11 passes.
 - Pending charges are ignored until posted. The round-up uses the posted amount.
 - Refunds and other credits never reduce the pot. The round-up already counted stays counted.
 - A posted transaction that disappears later is ignored (it was already counted; worst case is cents).
-- Ids are Teller transaction ids. Plaid uses its own ids, so switching banks starts a fresh id namespace.
+- Ids are the bank's transaction ids (Plaid's by default). Teller uses its own ids, so switching banks starts a fresh id namespace.
 
 **Ledger events** (one JSON object per line): `roundup`, `buy`, `targets_changed`, `proposal`, `decision`,
 `alert`, `reconciled`. Never edited, only appended.
@@ -287,7 +287,7 @@ US total bond BND, international bond BNDX, TIPS VTIP, short Treasuries SGOV, go
 ## 7. Security and privacy
 
 - **Key separation:** three Environments, three jobs, no job has more than one provider's secrets.
-  The AI can't reach Teller or Alpaca even if fully hijacked.
+  The AI can't reach Plaid or Alpaca even if fully hijacked.
 - **Leaked Alpaca key:** can trade, can't withdraw (no transfer endpoint). Unknown-order alert in every run.
 - **Prompt injection:** profile sentences are the only free text Claude sees for allocation; they're wrapped as
   data, and output is schema-bound and guard-checked. Merchant names go only to the categorizer, whose output
@@ -309,7 +309,7 @@ US total bond BND, international bond BNDX, TIPS VTIP, short Treasuries SGOV, go
 
 | Item | Cost |
 |---|---|
-| Teller developer tier, Alpaca, Telegram, GitHub Actions | $0 |
+| Plaid Trial plan, Alpaca, Telegram, GitHub Actions | $0 |
 | Claude: weekly allocation review (Opus 5.5, ~6K in / 1.5K out) | ~$0.05/week |
 | Claude: categorizing + weekly summary (Haiku 5.5) | under $0.01/week |
 | **Total** | **about $0.25 a month**, capped by `AI_MONTHLY_BUDGET_USD=2.00` |
@@ -355,7 +355,7 @@ Review and pin `alpacahq/alpaca-skills` as reference for endpoints and order fie
 stdlib HTTP: account cash, asset `fractionable` check, market clock, notional orders, list orders, reconcile, unknown-order
 alert, retries only on safe calls. *Done when:* mocked tests pass and one manual paper order of $5 succeeds and reconciles.
 
-**Phase 3: Teller adapter and enrollment**
+**Phase 3: Bank adapter and enrollment** (built for Teller first; Plaid became the default on 2026-11-25)
 mTLS client, posted-debit parsing (verify the sign convention against Teller docs), `spare enroll` local page with Teller
 Connect, fixture tests. `bank_plaid.py` behind the same interface. *Done when:* fixture tests pass and enroll works in Teller's sandbox.
 
@@ -382,11 +382,11 @@ Datasets, `run_evals.py`, `baseline.json`, `evals.yml`, CI gate, generated READM
 table and CI blocks a deliberately worse prompt.
 
 **Phase 9: Two-week paper run (calendar time, runs alongside phase 10)**
-Real Teller data, Alpaca paper, real Telegram; weekly buys give two paper buys in two weeks. Go-live checklist (`spare doctor --go-live`):
+Real Plaid data, Alpaca paper, real Telegram; weekly buys give two paper buys in two weeks. Go-live checklist (`spare doctor --go-live`):
 - 10 weekday `invest` runs with no unhandled errors
 - at least 2 paper buys, each reconciled, no duplicate orders after a forced re-run
 - one small change applied and one big change approved and one skipped
-- one "cash short" alert and one Teller re-link alert tested
+- one "cash short" alert and one bank re-link alert tested
 - shadow portfolio and cost tracking populated
 Passing writes `go_live.json`. Then switch to live keys.
 
@@ -404,7 +404,7 @@ paper dry run by following the README.
 2. **Safety design first:** the three-job diagram, "Claude proposes, code decides", the guardrail table, what happens if each key leaks.
 3. **Eval results** table and the shadow-index comparison, with honest commentary on what failed and what changed.
 4. Demo video and `python -m spare demo`.
-5. Setup guide (about 30–45 minutes, with screenshots): Alpaca, Teller, Telegram bot via BotFather, Anthropic key, GitHub Environments, onboarding, paper run, go live.
+5. Setup guide (about 30–45 minutes, with screenshots): Alpaca, Plaid, Telegram bot via BotFather, Anthropic key, GitHub Environments, onboarding, paper run, go live.
 6. Costs, privacy, disclaimer, roadmap.
 
 ---
@@ -426,7 +426,7 @@ paper dry run by following the README.
 - **Sell mode (opt-in):** sells only lots held more than a year (long-term gains), Telegram approval for every sell,
   wash-sale blocking (no buying a substantially identical holding within 30 days before or after a loss sale).
   The `buy` events in the ledger already record lots for this.
-- Credit-card round-ups (another Teller account id), more brokers, a read-only MCP server over the ledger,
+- Credit-card round-ups (another account id on the same Plaid Item), more brokers, a read-only MCP server over the ledger,
   a public eval dashboard.
 
 **Out of scope:** a hosted version for other people, automated bank transfers, options, crypto, margin, and any AI that
@@ -436,7 +436,7 @@ places orders or sees broker keys.
 
 Deferred by Ian on 2026-11-24. Build only after the open-source version (phases 1-10) is done.
 
-- The app is a bridge, not a broker: users connect their own Alpaca account via Alpaca OAuth and their bank via Teller/Plaid. The app never holds money.
+- The app is a bridge, not a broker: users connect their own Alpaca account via Alpaca OAuth and their bank via Plaid. The app never holds money.
 - Same open-source code underneath; the hosted app is the easy option for non-technical users.
 - Open issues: AI picks for other people may count as investment advice (default to user-chosen mix with AI explaining/suggesting, or register as an adviser later); token storage needs real security work.
 - Rough cost per user per month: bank connection $0.50-$2, Claude ~$0.15, hosting $0.10-$0.50, Stripe ~$0.35 per charge. Fee of ~$2-$3/month (or ~$24/year) covers it, vs Acorns $3-$12.

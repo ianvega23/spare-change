@@ -150,7 +150,7 @@ class StatusDoctorTests(StateCase):
         self.assertIn("dry_run", text)
 
     def test_doctor(self):
-        env = {"TELLER_ACCESS_TOKEN": "t", "TELLER_CERT": "c", "TELLER_KEY": "k",
+        env = {"PLAID_CLIENT_ID": "i", "PLAID_SECRET": "s", "PLAID_ACCESS_TOKEN": "t",  # the default bank
                "APCA_API_KEY_ID": "a", "APCA_API_SECRET_KEY": "b"}
         self.write("targets.json", json.dumps(TARGETS))
         self.state.record_run("dry_run", "2026-03-02", ok=True)
