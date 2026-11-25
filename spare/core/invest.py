@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from . import engine, guard
-from .bank import Bank
+from .bank import Bank, RelinkNeeded
 from .broker import Broker, DuplicateOrder, Order
 from .config import Config
 from .ledger import Ledger
@@ -84,7 +84,13 @@ def run(cfg: Config, ledger: Ledger, bank: Bank, broker: Broker, targets: dict[s
         return RunResult("disabled", pot_cents=ledger.pot_cents())
 
     alerts = reconcile(ledger, broker, day)
-    added = collect_roundups(ledger, bank, cfg, day)
+    try:
+        added = collect_roundups(ledger, bank, cfg, day)
+    except RelinkNeeded as e:
+        # Keep going with the pot we already have; the user just has to re-link.
+        added = 0
+        ledger.append("alert", message=str(e), kind="relink")
+        alerts.append(str(e))
     pot = ledger.pot_cents()
     result = RunResult("not_buy_day", new_roundups=added, pot_cents=pot, errors=alerts)
 

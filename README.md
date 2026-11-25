@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 and 2 of 10 (the money engine and the Alpaca paper adapter) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 3 of 10 (the money engine, the Alpaca paper adapter and the Teller bank link) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -75,12 +75,29 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/ledger.py` | Append-only JSONL ledger; pot, holdings and seen transactions are derived from it |
 | `spare/core/invest.py` | One run of the money path: reconcile, fetch, round up, check, split, validate, order, record |
 | `spare/core/broker_alpaca.py` | Alpaca Trading API over stdlib HTTP: cash, clock, assets, notional orders, order list; paper unless explicitly unlocked |
+| `spare/core/bank_teller.py` | Teller over mutual TLS: your checking account's posted purchases, re-link alerts; `bank_plaid.py` is the fallback |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
 
 `spare/core` uses only the Python standard library and never imports the AI or bot code. Tests
 enforce both rules.
+
+## Link your bank (Teller)
+
+1. Create a free Teller developer account, note the application id, and download your client
+   certificate and key (keep them out of the repo; `teller/` is git-ignored).
+2. `python -m spare enroll --app-id app_...` opens Teller Connect on `127.0.0.1` and saves the
+   read-only access token to `teller/token.txt`.
+3. Check that purchases are read correctly:
+
+```bash
+export TELLER_ACCESS_TOKEN=$(cat teller/token.txt) TELLER_CERT=teller/certificate.pem TELLER_KEY=teller/private_key.pem
+python -m spare bank-check   # read-only: your accounts and the last 14 days, each marked purchase or money in
+```
+
+If a password change or MFA breaks the link, the weekly job keeps the pot and alerts you to run
+`spare enroll --relink <enrollment id>`.
 
 ## Check your Alpaca paper account
 
@@ -106,7 +123,7 @@ hold your ledger and holdings.
 |---|---|---|
 | 1 | Money engine, ledger, guardrails, demo (no network) | done |
 | 2 | Alpaca adapter (paper) | done |
-| 3 | Teller (Chase) adapter and enrollment | |
+| 3 | Teller (Chase) adapter and enrollment | done |
 | 4 | `invest` workflow and state branch | |
 | 5 | Telegram bot and onboarding | |
 | 6 | AI allocator and model-agnostic LLM adapter | |

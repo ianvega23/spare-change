@@ -9,6 +9,11 @@ multiplier = 1          # round-up multiplier: 1, 2 or 3
 buy_day = "monday"      # invest the week's round-ups once a week, on this weekday
 monthly_cap = 200       # most dollars invested per calendar month
 
+bank = "teller"                   # "teller" (default) or "plaid"
+bank_environment = "production"   # Teller: sandbox, development or production
+bank_account_id = ""              # empty = your one open checking account
+teller_spending_sign = "negative" # how Teller signs purchases; `spare bank-check` shows it
+
 allow_stocks = false    # true = individual S&P 500 stocks may be proposed
 
 [limits]                # optional; each value may only be stricter than the default
