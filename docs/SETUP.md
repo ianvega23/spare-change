@@ -328,6 +328,8 @@ locked until the two-week paper checklist (`spare doctor --go-live`) has passed.
 | Windows: a tool says "not recognized" right after installing | Close PowerShell and open a new one, so it picks up the new tools. |
 | Windows: pasting into a hidden prompt does nothing | Right-click in the window to paste, then press Enter. |
 | `git worktree add --orphan` says unknown option | Your Git is older than 2.42. Update it (step 2; on Windows, `winget upgrade Git.Git`). |
+| `git worktree add` says `fatal: 'state' already exists` | You already made the `state` folder earlier, so there's nothing to do. Check with `git worktree list`; if it shows a `state` line, carry on. |
+| Your private copy is missing a newer fix from the public repo | Copies made with "Use this template" don't update by themselves. Once: `git remote add upstream https://github.com/ianvega23/spare-change.git`. Then each time: `git fetch upstream`, `git checkout upstream/main -- .`, `git commit -m "Update from the public repo"`, `git push`. Your `state` branch isn't touched. |
 | `No module named spare` | Run the command from inside your `spare-change-private` folder, not from `state/` or elsewhere. |
 | Plaid says INVALID_API_KEYS | Use the **Production** secret, not the Sandbox one, and check the client_id. |
 | The bank needs re-linking later (password change, new MFA) | Your bot tells you. Run `python -m spare enroll --relink`. It keeps the same token, so nothing else changes. |
