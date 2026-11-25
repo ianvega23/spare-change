@@ -54,6 +54,11 @@ and never sees your transactions when it picks an allocation.
 | Alpaca / Public | Someone trades in your brokerage account | Reconcile flags every order this tool didn't place, on the next run |
 | Teller / Plaid | Someone reads your transactions | Spare Change links them for transactions only and never asks for payment access |
 
+**Main is locked.** The `bot` and `brain` jobs can write to the repository so they can update the
+`state` branch, and the `invest` job runs whatever code is on `main` with your bank and broker keys.
+So `main` must only change through a pull request you merge: `spare setup` adds a ruleset that blocks
+direct pushes (you, as admin, can still bypass it), and won't turn the jobs on without it.
+
 A short tour is in [`docs/design.md`](docs/design.md). The full design, threat model and
 trade-offs are in [`docs/PLAN.md`](docs/PLAN.md), [`docs/REVIEW.md`](docs/REVIEW.md) and the
 [ADRs](docs/adr/).
@@ -232,12 +237,13 @@ python -m spare setup
 
 It asks for your bank (Teller or Plaid), broker (Alpaca or Public) and whether to use Claude, writes
 `state/config.toml` in dry run, creates the `money`, `telegram` and `ai` environments limited to
-`main`, and stores each secret only in the environment of the job that reads it. You type secrets
+`main`, stores each secret only in the environment of the job that reads it, and locks `main` so
+only a pull request can change it. You type secrets
 with echo off and they go straight to `gh secret set` on stdin; nothing is saved on disk. It's safe
 to run again (it skips secrets already set). Linking the bank and onboarding stay separate steps,
 and the wizard lists them at the end. On GitHub Free, environment secrets only work in public
-repositories, so the wizard stops on a private copy without Pro or above rather than put every key
-in one place.
+repositories (branch rules too), so the wizard stops on a private copy without Pro or above rather
+than put every key in one place.
 
 ## Run it on GitHub Actions by hand
 
@@ -247,11 +253,15 @@ In **your private copy**:
    `TELLER_ACCESS_TOKEN`, `TELLER_CERT_PEM`, `TELLER_KEY_PEM` (the contents of the two `.pem` files),
    `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY` (paper keys), or `PUBLIC_SECRET_KEY` with
    `broker = "public"` in your config.
-2. **Settings → Variables → `SPARE_ENABLED` = `true`**. Without it the workflow does nothing, so the
+2. **Settings → Rules → Rulesets → New branch ruleset**: target the default branch, turn on
+   *Restrict deletions*, *Block force pushes* and *Require a pull request before merging*, and add
+   only *Repository admin* to the bypass list. This stops the `bot` and `brain` jobs from changing
+   the code the `invest` job runs with your keys.
+3. **Settings → Variables → `SPARE_ENABLED` = `true`**. Without it the workflow does nothing, so the
    public repo never runs.
-3. Optional: put your `config.toml` on the `state` branch. Without one the job uses the safe defaults:
+4. Optional: put your `config.toml` on the `state` branch. Without one the job uses the safe defaults:
    dry run and paper.
-4. Run **Actions → invest → Run workflow** once, then check it with `python -m spare status` and
+5. Run **Actions → invest → Run workflow** once, then check it with `python -m spare status` and
    `python -m spare doctor` after `git worktree add state origin/state`.
 
 The `invest` job runs every weekday at 15:00 UTC, collects round-ups, and buys once a week on your

@@ -54,6 +54,19 @@ TELEGRAM_SECRETS = [Secret("TELEGRAM_BOT_TOKEN", "telegram", "Telegram bot token
                     Secret("TELEGRAM_HMAC_KEY", "telegram", "button signing key", "generated")]
 AI_SECRETS = [Secret("ANTHROPIC_API_KEY", "ai", "Anthropic API key (console.anthropic.com)")]
 ENVIRONMENTS = ("money", "telegram", "ai")
+ADMIN_ROLE_ID = 5  # GitHub's built-in "admin" repository role
+MAIN_RULESET = {
+    "name": "spare: protect main",
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+    "bypass_actors": [{"actor_id": ADMIN_ROLE_ID, "actor_type": "RepositoryRole", "bypass_mode": "always"}],
+    "rules": [{"type": "deletion"}, {"type": "non_fast_forward"},
+              {"type": "pull_request", "parameters": {
+                  "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False,
+                  "require_code_owner_review": False, "require_last_push_approval": False,
+                  "required_review_thread_resolution": False}}],
+}
 
 Run = Callable[..., subprocess.CompletedProcess]
 Ask = Callable[[str], str]
@@ -111,6 +124,20 @@ class GitHub:
         if not any(p.get("name") == "main" for p in existing.get("branch_policies", [])):
             self.gh("api", "-X", "POST", f"repos/{self.repo}/environments/{env}/deployment-branch-policies",
                     "--input", "-", stdin=json.dumps({"name": "main", "type": "branch"}))
+
+    def protect_main(self) -> bool:
+        """Block direct pushes to the default branch. Returns False if it was already protected.
+
+        The bot and brain jobs can write to the repo (for the state branch). Without this rule they
+        could also change the code on main, which the invest job runs with your bank and broker keys.
+        Repository admins (you) can still push; the jobs' GitHub token can't.
+        """
+        existing = json.loads(self.gh("api", f"repos/{self.repo}/rulesets"))
+        if any(r.get("name") == MAIN_RULESET["name"] for r in existing):
+            return False
+        self.gh("api", "-X", "POST", f"repos/{self.repo}/rulesets", "--input", "-",
+                stdin=json.dumps(MAIN_RULESET))
+        return True
 
     def secret_names(self, env: str) -> set[str]:
         data = json.loads(self.gh("api", f"repos/{self.repo}/environments/{env}/secrets"))
@@ -202,13 +229,16 @@ def run(state_dir: str, *, ask: Ask = input, ask_secret: Ask = getpass.getpass,
                     continue
                 gh.set_secret(env, s.name, read_value(s, ask_secret, ask))
                 out(f"  set   {s.name}")
+        added = gh.protect_main()
+        out("Main branch: " + ("now protected" if added else "already protected")
+            + " (the jobs can't change the code your money job runs).")
     except SetupError as e:
         out(f"\nStopped: {e}")
-        if "environment" in str(e).lower() or "404" in str(e) or "403" in str(e):
-            out("On GitHub Free, environment secrets only work in public repositories; a private copy "
+        if any(w in str(e).lower() for w in ("environment", "ruleset", "404", "403")):
+            out("On GitHub Free, environment secrets and branch rules only work in public repositories; a private copy "
                 "needs GitHub Pro, Team or Enterprise. "
                 "Spare Change keeps each key in its own environment on purpose, so it won't fall back "
-                "to repository-wide secrets.")
+                "to repository-wide secrets, and won't turn the jobs on with main unprotected.")
         return 1
 
     if yes(ask, "\nTurn the scheduled jobs on now (repository variable SPARE_ENABLED = true)?", False):

@@ -24,6 +24,7 @@ class FakeGh:
         self.values = {}
         self.envs = {}
         self.variables = {}
+        self.rulesets = []
         self.fail_on = fail_on
 
     def __call__(self, cmd, input=None, capture_output=True, text=True, check=False):
@@ -34,6 +35,11 @@ class FakeGh:
             return subprocess.CompletedProcess(cmd, 1, "", "HTTP 403: Environments are not available")
         if args[:2] == ["repo", "view"]:
             return ok(json.dumps({"nameWithOwner": "me/spare", "visibility": self.visibility}))
+        if args[:1] == ["api"] and any(a.endswith("/rulesets") for a in args):
+            if "POST" in args:
+                self.rulesets.append(json.loads(input))
+                return ok("{}")
+            return ok(json.dumps([{"name": r["name"]} for r in self.rulesets]))
         if args[:1] == ["api"]:
             path = next(a for a in args[1:] if a.startswith("repos/"))
             env = path.split("/")[4]
@@ -142,6 +148,39 @@ class SetupTests(TempDirCase):
         self.go(FakeGh(), ["", "", "n"] + ["n"] * 7 + ["n"])
         cfg = tomllib.loads(state.config_path.read_text())
         self.assertEqual((cfg["multiplier"], cfg["buy_day"], cfg["dry_run"]), (2, "friday", True))
+
+    def test_protects_main_once_and_before_the_jobs_go_on(self):
+        gh = FakeGh(existing={s.env: {s.name} for s in setup.secrets_for("teller", "alpaca", True)})
+        gh.secrets = {}
+        for s in setup.secrets_for("teller", "alpaca", True):
+            gh.secrets.setdefault(s.env, set()).add(s.name)
+        code, out = self.go(gh, ["", "", "", "y"])
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(gh.rulesets), 1)
+        rule = gh.rulesets[0]
+        self.assertEqual((rule["target"], rule["enforcement"]), ("branch", "active"))
+        self.assertEqual(rule["conditions"]["ref_name"]["include"], ["~DEFAULT_BRANCH"])
+        self.assertEqual({r["type"] for r in rule["rules"]}, {"deletion", "non_fast_forward", "pull_request"})
+        # Only the admin role may bypass: never an app or integration (the jobs' GitHub token).
+        self.assertEqual([(a["actor_type"], a["actor_id"]) for a in rule["bypass_actors"]],
+                         [("RepositoryRole", setup.ADMIN_ROLE_ID)])
+        self.assertIn("Main branch: now protected", out)
+        order = [" ".join(c) for c, _ in gh.calls]
+        self.assertLess(next(i for i, c in enumerate(order) if "rulesets" in c and "POST" in c),
+                        next(i for i, c in enumerate(order) if "SPARE_ENABLED" in c))
+        code, out = self.go(gh, ["", "", "", "y"])  # run again: no second ruleset
+        self.assertEqual(len(gh.rulesets), 1)
+        self.assertIn("Main branch: already protected", out)
+
+    def test_jobs_stay_off_when_main_cant_be_protected(self):
+        names = {}
+        for s in setup.secrets_for("teller", "alpaca", True):
+            names.setdefault(s.env, set()).add(s.name)
+        gh = FakeGh(existing=names, fail_on="rulesets")
+        code, out = self.go(gh, ["", "", ""])
+        self.assertEqual(code, 1, out)
+        self.assertEqual(gh.variables, {})
+        self.assertIn("branch rules only work in public repositories", out)
 
     def test_refuses_a_public_repo(self):
         code, out = self.go(FakeGh(visibility="PUBLIC"), [])

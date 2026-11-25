@@ -18,5 +18,7 @@ The first release: everything in `docs/PLAN.md` phases 1 to 10. Defaults are dry
   monthly budget; Haiku for the weekly summary and merchant categories.
 - Shadow all-VTI portfolio.
 - Evals: 60 profiles, 50 injection attacks, offline CI gate, opt-in live runs.
-- `python -m spare setup`: guided setup of config, GitHub environments and secrets.
+- `python -m spare setup`: guided setup of config, GitHub environments and secrets, and a ruleset
+  that locks `main` so the `bot` and `brain` jobs can't change the code the `invest` job runs.
+- `spare enroll` answers only requests addressed to `127.0.0.1`/`localhost` (blocks DNS rebinding).
 - `python -m spare doctor`: checks the setup without touching money.
