@@ -70,6 +70,7 @@ class AlpacaBroker:
             raise ValueError("Alpaca key id and secret are required")
         self.env = env
         self.name = f"alpaca-{env}"
+        self.label = "Alpaca"
         self._base = BASE_URLS[env]
         self._headers = {"APCA-API-KEY-ID": key_id, "APCA-API-SECRET-KEY": secret_key,
                          "Accept": "application/json", "User-Agent": "spare-change"}

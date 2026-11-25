@@ -125,10 +125,12 @@ def auto_change_allowed(last_auto_change: datetime | None, now: datetime) -> boo
 
 
 def validate_buy(*, amount_cents: int, invested_this_month_cents: int,
-                 monthly_cap_cents: int, cash_cents: int | None = None) -> list[str]:
+                 monthly_cap_cents: int, cash_cents: int | None = None,
+                 min_order_cents: int = MIN_ORDER_CENTS) -> list[str]:
     errors = []
-    if amount_cents < MIN_ORDER_CENTS:
-        errors.append("buy is under the $1 minimum")
+    minimum = max(MIN_ORDER_CENTS, min_order_cents)
+    if amount_cents < minimum:
+        errors.append(f"buy is under the ${minimum / 100:.0f} minimum")
     if invested_this_month_cents + amount_cents > monthly_cap_cents:
         errors.append("buy would pass the monthly cap")
     if cash_cents is not None and cash_cents < amount_cents:
@@ -137,9 +139,10 @@ def validate_buy(*, amount_cents: int, invested_this_month_cents: int,
 
 
 def validate_order_plan(slices: dict[str, int], targets: dict[str, float],
-                        amount_cents: int) -> list[str]:
-    """The exact orders about to be placed: buys only, $1 minimum, only target symbols, right total."""
+                        amount_cents: int, min_order_cents: int = MIN_ORDER_CENTS) -> list[str]:
+    """The exact orders about to be placed: buys only, the broker's minimum, only target symbols, right total."""
     errors = []
+    minimum = max(MIN_ORDER_CENTS, min_order_cents)
     if not slices:
         errors.append("no orders to place")
     for symbol, cents in slices.items():
@@ -148,8 +151,8 @@ def validate_order_plan(slices: dict[str, int], targets: dict[str, float],
             continue
         if cents < 0:
             errors.append(f"{symbol}: sells are blocked in v1")
-        elif cents < MIN_ORDER_CENTS:
-            errors.append(f"{symbol}: order under the $1 minimum")
+        elif cents < minimum:
+            errors.append(f"{symbol}: order under the ${minimum / 100:.0f} minimum")
         if symbol not in targets:
             errors.append(f"{symbol}: not in the approved targets")
     if sum(c for c in slices.values() if isinstance(c, int)) != amount_cents:

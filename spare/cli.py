@@ -126,12 +126,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--symbol", default="VTI")
     p.add_argument("--dollars", type=int, default=5)
     sub.add_parser("eval", help="allocator evals: offline by default, --live for the real model")
+    sub.add_parser("setup", help="guided first-time setup: config, GitHub environments and secrets")
     for name in LATER:
         sub.add_parser(name, help=f"coming in phase {LATER[name]}")
     raw = sys.argv[1:] if argv is None else argv
     if raw[:1] == ["eval"]:  # its own flags, parsed by spare.brain.evals
         from .brain import evals
         return evals.main(raw[1:], os.environ)
+    if raw[:1] == ["setup"]:  # its own flags, parsed by spare.setup
+        from . import setup
+        return setup.main(raw[1:])
     args = parser.parse_args(argv)
 
     if args.command == "demo":

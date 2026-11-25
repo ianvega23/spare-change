@@ -9,13 +9,15 @@ from .core import guard, invest
 from .core.bank import BankError
 from .core.broker import BrokerError
 from .core.broker_alpaca import AlpacaBroker
+from .core.broker_public import PublicBroker
 from .core import shadow
 from .core.state import State, StateError
 
 STALE_RUN_DAYS = 3
 SECRET_NAMES = {"teller": ("TELLER_ACCESS_TOKEN", "TELLER_CERT", "TELLER_KEY"),
                 "plaid": ("PLAID_CLIENT_ID", "PLAID_SECRET", "PLAID_ACCESS_TOKEN"),
-                "alpaca": ("APCA_API_KEY_ID", "APCA_API_SECRET_KEY")}
+                "alpaca": ("APCA_API_KEY_ID", "APCA_API_SECRET_KEY"),
+                "public": ("PUBLIC_SECRET_KEY",)}
 EXIT_OK, EXIT_FAILED = 0, 1
 
 
@@ -30,16 +32,31 @@ def load_config(state: State) -> config_mod.Config:
     return config_mod.from_dict({})
 
 
+def wants_live(cfg: config_mod.Config) -> bool:
+    """Public has no paper account, so choosing it means real money."""
+    return cfg.broker == "public" or cfg.alpaca_env == "live"
+
+
 def live_unlocked(cfg: config_mod.Config, state: State) -> bool:
     gate = state.go_live() or {}
-    return cfg.alpaca_env == "live" and not cfg.dry_run and gate.get("passed") is True
+    return wants_live(cfg) and not cfg.dry_run and gate.get("passed") is True
 
 
-def broker_from_env(cfg: config_mod.Config, state: State) -> AlpacaBroker:
+def broker_from_env(cfg: config_mod.Config, state: State, environ=None):
+    environ = os.environ if environ is None else environ
+    if cfg.broker == "public":
+        if not cfg.dry_run and not live_unlocked(cfg, state):
+            raise SystemExit("broker is public (real money only), but orders need a passed go-live "
+                             "checklist (state/go_live.json). Staying out of the market.")
+        secret = environ.get("PUBLIC_SECRET_KEY", "")
+        if not secret:
+            raise SystemExit("PUBLIC_SECRET_KEY isn't set.")
+        return PublicBroker(secret, allow_orders=live_unlocked(cfg, state),
+                            account_id=cfg.public_account_id or None)
     if cfg.alpaca_env == "live" and not live_unlocked(cfg, state):
         raise SystemExit("alpaca_env is live, but live trading needs dry_run = false and a passed "
                          "go-live checklist (state/go_live.json). Staying out of the market.")
-    key, secret = os.environ.get("APCA_API_KEY_ID", ""), os.environ.get("APCA_API_SECRET_KEY", "")
+    key, secret = environ.get("APCA_API_KEY_ID", ""), environ.get("APCA_API_SECRET_KEY", "")
     if not key or not secret:
         raise SystemExit("APCA_API_KEY_ID and APCA_API_SECRET_KEY aren't set.")
     return AlpacaBroker(key, secret, env=cfg.alpaca_env, allow_live=live_unlocked(cfg, state))
@@ -136,12 +153,13 @@ def doctor(state_dir: str, today: date | None = None, environ=None, out=print) -
     try:
         cfg = load_config(state)
         out(f"ok    config ({'state/config.toml' if state.config_path.exists() else 'defaults'}): "
-            f"{cfg.alpaca_env}, {'dry run' if cfg.dry_run else 'placing orders'}")
+            f"{'public (live)' if cfg.broker == 'public' else cfg.alpaca_env}, "
+            f"{'dry run' if cfg.dry_run else 'placing orders'}")
     except config_mod.ConfigError as e:
         problems.append(f"config: {e}")
         cfg = config_mod.from_dict({})
 
-    for group in (cfg.bank, "alpaca"):
+    for group in (cfg.bank, cfg.broker):
         names = SECRET_NAMES[group]
         if group == "teller" and cfg.bank_environment == "sandbox":
             names = names[:1]
@@ -159,7 +177,7 @@ def doctor(state_dir: str, today: date | None = None, environ=None, out=print) -
     except StateError as e:
         problems.append(str(e))
 
-    if cfg.alpaca_env == "live" and not live_unlocked(cfg, state):
+    if wants_live(cfg) and not cfg.dry_run and not live_unlocked(cfg, state):
         problems.append("live is set but locked: needs dry_run = false and a passed go-live checklist")
     if state.paused() or not cfg.enabled:
         warnings.append("paused: the kill switch is on")
