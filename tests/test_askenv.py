@@ -53,5 +53,17 @@ class SetupPathTests(unittest.TestCase):
             self.assertEqual(setup.read_value(cert, lambda p: self.fail("asked"), lambda p: "", base), self.PEM)
 
 
+class LegacyCodePageTest(unittest.TestCase):
+    def test_output_survives_a_cp1252_pipe(self):
+        """Windows pipes default to cp1252; `spare eval` prints characters it can't encode."""
+        import os
+        import subprocess
+        import sys
+        root = pathlib.Path(__file__).resolve().parents[1]
+        r = subprocess.run([sys.executable, "-m", "spare", "eval"], cwd=root, capture_output=True,
+                           env={**os.environ, "PYTHONIOENCODING": "cp1252"}, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr.decode("utf-8", "replace")[-500:])
+
+
 if __name__ == "__main__":
     unittest.main()
