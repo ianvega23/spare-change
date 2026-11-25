@@ -1,6 +1,7 @@
 """Load and validate config.toml. Anything invalid stops the run before it touches money."""
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -31,6 +32,9 @@ class Config:
     bank_environment: str = "production"
     bank_account_id: str = ""
     teller_spending_sign: str = "negative"
+    allocator_model: str = "claude-opus-5-5"
+    cheap_model: str = "claude-haiku-5-5"
+    ai_monthly_budget_cents: int = 200
 
 
 def dollars_to_cents(value, name: str) -> int:
@@ -47,7 +51,8 @@ def dollars_to_cents(value, name: str) -> int:
 
 _TOP_KEYS = {"enabled", "dry_run", "alpaca_env", "multiplier", "buy_day", "monthly_cap",
              "allow_stocks", "limits", "bank", "bank_environment",
-             "bank_account_id", "teller_spending_sign"}
+             "bank_account_id", "teller_spending_sign",
+             "allocator_model", "cheap_model", "ai_monthly_budget"}
 _LIMIT_KEYS = {"min_holdings", "max_etf_weight", "max_stock_weight", "max_stocks_total"}
 
 
@@ -82,6 +87,16 @@ def from_dict(raw: dict) -> Config:
     if not isinstance(account, str):
         raise ConfigError("bank_account_id must be text")
 
+    models = {}
+    for key, default in (("allocator_model", "claude-opus-5-5"), ("cheap_model", "claude-haiku-5-5")):
+        value = raw.get(key, default)
+        if not isinstance(value, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.\-]{2,63}", value):
+            raise ConfigError(f"{key} must be a model id like {default}")
+        models[key] = value
+    ai_budget = dollars_to_cents(raw.get("ai_monthly_budget", "2.00"), "ai_monthly_budget")
+    if not 0 <= ai_budget <= 10_000:
+        raise ConfigError("ai_monthly_budget must be between $0 and $100")
+
     limits = guard.Limits(allow_stocks=raw.get("allow_stocks", False),
                           **{k: raw_limits[k] for k in _LIMIT_KEYS if k in raw_limits})
     cfg = Config(
@@ -96,6 +111,8 @@ def from_dict(raw: dict) -> Config:
         bank_environment=bank_env,
         bank_account_id=account,
         teller_spending_sign=sign,
+        ai_monthly_budget_cents=ai_budget,
+        **models,
     )
     errors = guard.validate_settings(buy_weekday=cfg.buy_weekday,
                                      multiplier=cfg.multiplier,

@@ -14,7 +14,7 @@ from .fake import FakeBank, FakeBroker
 # An example allocation for the demo only. Not advice.
 DEMO_TARGETS = {"VTI": 0.35, "VXUS": 0.20, "BND": 0.20, "SGOV": 0.15, "VNQ": 0.10}
 DEMO_PRICES = {"VTI": 31_000, "VXUS": 6_800, "BND": 7_300, "SGOV": 10_050, "VNQ": 9_100}
-LATER = {"brain": 6, "eval": 8}
+LATER = {"eval": 8}
 
 
 def usd(cents: int) -> str:
@@ -64,6 +64,29 @@ def demo(weeks: int, multiplier: int, buy_day: str, seed: int, ledger_path: str 
     return ledger
 
 
+def first_mix(state_dir: str, environ=None, out=print):
+    """Onboarding's first proposal: the Claude allocator if ANTHROPIC_API_KEY is set here,
+    otherwise (or if it fails) the plain starter mix. Either way it waits for your Approve."""
+    environ = os.environ if environ is None else environ
+
+    def propose(profile: dict) -> dict:
+        from .brain import starter
+        if environ.get("ANTHROPIC_API_KEY"):
+            try:
+                from .brain import job
+                from .brain.llm import LLMError
+            except ImportError:
+                out("The anthropic package isn't installed (pip install --require-hashes -r "
+                    "requirements-ai.txt), so you get the starter mix.")
+                return starter.propose(profile)
+            try:
+                return job.first_proposal(state_dir, profile, environ=environ)
+            except (LLMError, ImportError) as e:
+                out(f"The allocator didn't produce a mix ({e}), so you get the starter mix.")
+        return starter.propose(profile)
+    return propose
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="spare", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -81,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("invest", help="one run of the money path (what the weekday job runs)")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p.add_argument("--date", default=None, help="pretend today is this ISO date (testing)")
+    p = sub.add_parser("brain", help="the weekly allocation review (what the Sunday job runs)")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p = sub.add_parser("status", help="pot, holdings, targets and the last run")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p = sub.add_parser("doctor", help="check the setup without touching money")
@@ -123,8 +148,7 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("set TELEGRAM_CHAT_ID (see `spare telegram-chat-id`)")
         if args.command == "onboard":
             from .bot import onboard
-            from .brain import starter
-            onboard.run(args.state, onboard.TelegramAsk(client, int(chat)), starter.propose)
+            onboard.run(args.state, onboard.TelegramAsk(client, int(chat)), first_mix(args.state))
             print("Your first proposal reaches Telegram on the next bot run (hourly), or now with "
                   "`python -m spare bot` if TELEGRAM_HMAC_KEY is set here too. Push the state "
                   "folder to your state branch so the jobs see it.")
@@ -142,6 +166,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Sent {r.sent}, offered {r.proposals_offered} proposal(s), decisions {r.decisions or 'none'}, "
               f"commands {r.commands or 'none'}, ignored {r.ignored_other_chats} message(s) from other chats.")
         return 0
+    if args.command == "brain":
+        from .brain import job
+        return job.run_brain(args.state)
     if args.command in ("invest", "status", "doctor"):
         from . import jobs
         if args.command == "invest":

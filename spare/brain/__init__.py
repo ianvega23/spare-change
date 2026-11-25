@@ -1,1 +1,1 @@
-"""AI allocator (phase 6). Never imported by spare.core."""
+"""AI allocator: the model adapter, prompts and cost tracking. Never imported by spare.core."""
