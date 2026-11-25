@@ -30,7 +30,7 @@ class Config:
     buy_weekday: int = 0  # 0 = Monday ... 4 = Friday
     monthly_cap_cents: int = guard.DEFAULT_MONTHLY_CAP_CENTS
     limits: guard.Limits = field(default_factory=guard.Limits)
-    bank: str = "teller"
+    bank: str = "plaid"  # plaid | teller (Teller has no public signup: docs/adr/0005)
     bank_environment: str = "production"
     bank_account_id: str = ""
     teller_spending_sign: str = "negative"
@@ -85,9 +85,9 @@ def from_dict(raw: dict) -> Config:
     if not isinstance(buy_day, str) or buy_day.lower() not in WEEKDAYS:
         raise ConfigError("buy_day must be a weekday name, monday to friday")
 
-    bank = raw.get("bank", "teller")
-    if bank not in ("teller", "plaid"):
-        raise ConfigError('bank must be "teller" or "plaid"')
+    bank = raw.get("bank", "plaid")
+    if bank not in ("plaid", "teller"):
+        raise ConfigError('bank must be "plaid" or "teller"')
     bank_env = raw.get("bank_environment", "production")
     if bank_env not in ("sandbox", "development", "production"):
         raise ConfigError("bank_environment must be sandbox, development or production")

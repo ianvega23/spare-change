@@ -6,7 +6,7 @@ shares of a diversified portfolio in your own brokerage account. An AI allocator
 the goals you describe in your own words, and plain code decides whether that suggestion is allowed.
 
 It is built for developers who are comfortable with API keys and GitHub secrets. There is no
-hosted service: you run it on GitHub Actions with your own Chase (via Teller), Alpaca (or Public)
+hosted service: you run it on GitHub Actions with your own bank (via Plaid), Alpaca (or Public)
 and Telegram accounts. Your private copy needs a GitHub plan with environment secrets (Pro or
 above), because each job keeps its own keys.
 
@@ -55,7 +55,7 @@ and never sees your transactions when it picks an allocation.
 | Anthropic | Someone spends your AI budget | The `ai` environment holds no bank or broker key |
 | Telegram | Someone reads your updates or sends you messages | Buttons are HMAC-signed with a separate key; the bot only answers your chat id |
 | Alpaca / Public | Someone trades in your brokerage account | Reconcile flags every order this tool didn't place, on the next run |
-| Teller / Plaid | Someone reads your transactions | Spare Change links them for transactions only and never asks for payment access |
+| Plaid | Someone reads your transactions | Spare Change links them for transactions only and never asks for payment access |
 
 **Main is locked.** The `bot` and `brain` jobs can write to the repository so they can update the
 `state` branch, and the `invest` job runs whatever code is on `main` with your bank and broker keys.
@@ -98,7 +98,8 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/core/broker_alpaca.py` | Alpaca Trading API over stdlib HTTP: cash, clock, assets, notional orders, order list; paper unless explicitly unlocked |
 | `spare/core/broker_public.py` | Public Trading API: live only, $5 minimum, orders locked until the go-live checklist passes |
 | `spare/setup.py` | `spare setup`: config, GitHub environments and secrets through `gh` |
-| `spare/core/bank_teller.py` | Teller over mutual TLS: your checking account's posted purchases, re-link alerts; `bank_plaid.py` is the fallback |
+| `spare/core/bank_plaid.py` | Plaid: your checking account's posted purchases and re-link alerts; `bank_teller.py` does the same over Teller's mutual TLS |
+| `spare/enroll_plaid.py`, `spare/enroll.py` | `spare enroll`: link your bank on `127.0.0.1` through Plaid Link (default) or Teller Connect |
 | `spare/core/state.py` | Files on the `state` branch: ledger, approved targets, pause flag, outbox for the bot |
 | `spare/jobs.py` | `invest`, `status` and `doctor` commands |
 | `spare/core/proposals.py` | Big changes: proposals with HMAC-signed Approve/Skip buttons, 7-day expiry, guard re-check on approve |
@@ -113,10 +114,27 @@ Week  3: +$13.19 round-ups, pot $7.43
 `spare/core` uses only the Python standard library and never imports the AI or bot code. Tests
 enforce both rules.
 
-## Link your bank (Teller)
+## Link your bank (Plaid)
 
-1. Create a free Teller developer account, note the application id, and download your client
-   certificate and key (keep them out of the repo; `teller/` is git-ignored).
+Make a free Plaid account at <https://dashboard.plaid.com/signup> (choose **Personal use**; the
+Trial plan gives you 10 real connections, Chase included). Then:
+
+```bash
+python -m spare enroll       # asks for your client_id and Production secret, opens Plaid Link on 127.0.0.1
+python -m spare bank-check   # read-only: the last 14 days, each marked purchase or money in
+```
+
+The read-only access token is saved to `plaid/token.txt` (git-ignored). Step-by-step help is in
+[docs/SETUP.md](docs/SETUP.md).
+
+## Link your bank (Teller, existing accounts only)
+
+Plaid is the default and the only option for new users: Teller no longer has a public sign-up
+page (see [ADR 0005](docs/adr/0005-plaid-default-bank.md)). The Teller code stays for people who
+already have a Teller developer account:
+
+1. Note your application id and put your client certificate and key in a `teller/` folder (it's
+   git-ignored, so they stay out of the repo).
 2. `python -m spare enroll --app-id app_...` opens Teller Connect on `127.0.0.1` and saves the
    read-only access token to `teller/token.txt`.
 3. Check that purchases are read correctly:
@@ -240,7 +258,7 @@ In **your private copy**, with the [GitHub CLI](https://cli.github.com) signed i
 python -m spare setup
 ```
 
-It asks for your bank (Teller or Plaid), broker (Alpaca or Public) and whether to use Claude, writes
+It asks for your bank (Plaid by default), broker (Alpaca or Public) and whether to use Claude, writes
 `state/config.toml` in dry run, creates the `money`, `telegram` and `ai` environments limited to
 `main`, stores each secret only in the environment of the job that reads it, and locks `main` so
 only a pull request can change it. You type secrets
@@ -255,7 +273,7 @@ than put every key in one place.
 In **your private copy**:
 
 1. **Settings → Environments → New environment `money`**, limited to the `main` branch. Add these secrets:
-   `TELLER_ACCESS_TOKEN`, `TELLER_CERT_PEM`, `TELLER_KEY_PEM` (the contents of the two `.pem` files),
+   `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ACCESS_TOKEN` (from `plaid/token.txt`),
    `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY` (paper keys), or `PUBLIC_SECRET_KEY` with
    `broker = "public"` in your config.
 2. **Settings → Rules → Rulesets → New branch ruleset**: target the default branch, turn on
@@ -285,7 +303,7 @@ hold your ledger and holdings.
 |---|---|---|
 | 1 | Money engine, ledger, guardrails, demo (no network) | done |
 | 2 | Alpaca adapter (paper) | done |
-| 3 | Teller (Chase) adapter and enrollment | done |
+| 3 | Bank adapter and enrollment (Plaid by default; Teller for existing accounts) | done |
 | 4 | `invest` workflow and state branch | done |
 | 5 | Telegram bot and onboarding | done |
 | 6 | AI allocator and model-agnostic LLM adapter | done |

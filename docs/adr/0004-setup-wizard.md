@@ -13,7 +13,7 @@ nine or more secrets into the right one. Putting a key in the wrong environment 
 `python -m spare setup` runs on your computer inside your private copy and uses the GitHub CLI:
 
 - It **refuses a public repository**, because the `state` branch holds your ledger.
-- It asks for the bank (Teller or Plaid), the broker (Alpaca or Public) and whether to use Claude,
+- It asks for the bank (Plaid by default, or Teller for existing accounts), the broker (Alpaca or Public) and whether to use Claude,
   then merges those into `state/config.toml`, keeping your other settings. It always leaves
   `dry_run = true` and `alpaca_env = "paper"` unless you had already gone live.
 - It creates the `money`, `telegram` and `ai` environments, each limited to the `main` branch, and

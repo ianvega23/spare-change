@@ -62,7 +62,7 @@ class PlaidBank:
                     continue
             message = str(payload.get("error_message") or "")[:200]
             if code in RELINK_CODES:
-                raise RelinkNeeded(f"your bank connection needs attention (Plaid {code}); re-link it")
+                raise RelinkNeeded(f"your bank connection needs attention (Plaid {code}); run `spare enroll --relink`")
             raise BankError(f"Plaid {path} failed (HTTP {resp.status} {code}: {message})")
         raise BankError(f"Plaid {path} failed")  # pragma: no cover
 

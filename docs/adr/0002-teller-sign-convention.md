@@ -1,6 +1,6 @@
 # ADR 0002: Make Teller's amount sign a setting, checked once with `spare bank-check`
 
-**Status:** accepted (phase 3)
+**Status:** accepted (phase 3). Applies only to the Teller adapter; Plaid, the default since ADR 0005, signs purchases positive and needs no setting.
 
 ## Context
 

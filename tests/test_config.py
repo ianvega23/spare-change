@@ -16,10 +16,12 @@ class ConfigTests(TempDirCase):
         self.assertEqual(cfg.monthly_cap_cents, 20_000)
         self.assertEqual(cfg.multiplier, 1)
         self.assertFalse(cfg.limits.allow_stocks)
+        self.assertEqual(cfg.bank, "plaid")  # Teller has no public sign-up (ADR 0005)
 
     def test_example_config_loads(self):
         cfg = config.load(os.path.join(config.REPO_ROOT, "config.example.toml"))
         self.assertTrue(cfg.dry_run)
+        self.assertEqual(cfg.bank, "plaid")
 
     def test_dollars_to_cents(self):
         self.assertEqual(from_dict({"monthly_cap": 123.45}).monthly_cap_cents, 12_345)

@@ -20,7 +20,7 @@ jobs:
     if: vars.SPARE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: money   # Teller + broker secrets live only here, limited to the main branch
+    environment: money   # bank + broker secrets live only here, limited to the main branch
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -41,7 +41,7 @@ jobs:
             git worktree add --orphan -b state state
           fi
 
-      - name: Write the Teller certificate to a private temp folder
+      - name: Write the Teller certificate to a private temp folder (Teller users only; empty with Plaid)
         env:
           TELLER_CERT_PEM: ${{ secrets.TELLER_CERT_PEM }}
           TELLER_KEY_PEM: ${{ secrets.TELLER_KEY_PEM }}

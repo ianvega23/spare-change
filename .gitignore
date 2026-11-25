@@ -18,6 +18,7 @@ profile.toml
 *.pem
 *.key
 teller/
+plaid/
 state/
 ledger.jsonl
 go_live.json
