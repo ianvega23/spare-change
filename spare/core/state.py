@@ -8,6 +8,10 @@
       go_live.json     written by `spare doctor --go-live` after the paper checklist passes
       last_run.json    when invest last finished, and how
       outbox/          messages for the bot job to send to Telegram
+      proposals/       big changes waiting for Approve/Skip (brain writes, bot decides)
+      decisions.jsonl  every answer and every small change applied on its own
+      telemetry.jsonl  tokens, cost and latency of each AI call (brain job writes)
+      brain.json       when the allocator last ran, and the last automatic change
 """
 from __future__ import annotations
 

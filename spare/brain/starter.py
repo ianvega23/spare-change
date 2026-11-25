@@ -1,4 +1,4 @@
-"""A plain starter allocation from your horizon sentence, used until the AI allocator (phase 6).
+"""A plain starter allocation from your horizon sentence, for when the AI allocator isn't available.
 
 It picks one of three fixed mixes. Like every proposal, it goes through the guardrails and needs
 your Approve. Placeholders to show how the software works, not advice.
@@ -36,5 +36,5 @@ def propose(profile: dict) -> dict:
     name = pick_mix(profile)
     targets = MIXES[name]
     return {"targets": dict(targets), "reasons": {s: REASONS[s] for s in targets},
-            "summary": f"A {name} starter mix based on your time horizon. The AI allocator "
-                       "replaces this once it's built.", "source": f"starter:{name}"}
+            "summary": f"A {name} starter mix based on your time horizon. The weekly AI "
+                       "review can suggest changes later.", "source": f"starter:{name}"}

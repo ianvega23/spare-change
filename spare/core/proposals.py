@@ -70,12 +70,18 @@ def pending(state: State) -> list[dict]:
     return [p for p in out if p.get("status") == "pending"]
 
 
+def log_decision(state: State, type: str, now: datetime, **data) -> dict:
+    """Append one line to decisions.jsonl: proposal answers, and small changes applied on their own."""
+    line = {"type": type, "at": now.isoformat(timespec="seconds"), **data}
+    with open(state.root / "decisions.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+    return line
+
+
 def _record(state: State, proposal: dict, status: str, now: datetime, note: str = "") -> None:
     proposal = {**proposal, "status": status, "decided_at": now.isoformat(timespec="seconds")}
     state._write_json(f"proposals/{proposal['id']}.json", proposal)
-    with open(state.root / "decisions.jsonl", "a", encoding="utf-8") as f:
-        f.write(json.dumps({"type": "decision", "proposal": proposal["id"], "status": status,
-                            "at": proposal["decided_at"], "note": note}, sort_keys=True) + "\n")
+    log_decision(state, "decision", now, proposal=proposal["id"], status=status, note=note)
 
 
 def expire_old(state: State, now: datetime | None = None) -> list[dict]:

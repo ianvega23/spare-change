@@ -9,7 +9,7 @@ It is built for developers who are comfortable with API keys and GitHub secrets.
 hosted service: you run it on GitHub Actions' free tier with your own Chase (via Teller),
 Alpaca and Telegram accounts.
 
-> **Status:** phases 1 to 5 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job and the Telegram bot) are built and tested. Nothing here trades real money yet. The defaults are dry run
+> **Status:** phases 1 to 6 of 10 (money engine, Alpaca paper adapter, Teller bank link, the weekday GitHub Actions job, the Telegram bot and the Claude allocator) are built and tested. Nothing here trades real money yet. The defaults are dry run
 > and Alpaca paper trading. See the [roadmap](#roadmap).
 
 ## Safety design
@@ -80,6 +80,7 @@ Week  3: +$13.19 round-ups, pot $7.43
 | `spare/jobs.py` | `invest`, `status` and `doctor` commands |
 | `spare/core/proposals.py` | Big changes: proposals with HMAC-signed Approve/Skip buttons, 7-day expiry, guard re-check on approve |
 | `spare/bot/` | Telegram client, the hourly relay (outbox, buttons, /status /pause /resume) and onboarding |
+| `spare/brain/` | The Claude allocator: model adapter (`llm.py`), versioned prompts, output checks and retry (`allocator.py`), cost tracking and budget (`telemetry.py`), the Sunday `brain` job |
 | `spare/core/config.py` | Loads `config.toml`; refuses anything invalid or looser than the hard limits |
 | `spare/fake.py` | Fake bank and broker for tests and the demo |
 | `allowlist/etfs.toml` | The 15-ETF default universe (a placeholder, not advice) |
@@ -131,6 +132,30 @@ The hourly `bot` job sends your messages, offers proposals with **Approve / Skip
 `/status`, `/pause`, `/resume` and `/profile`. It only answers your chat id, and every button is
 signed, so a forged tap does nothing. Unanswered proposals expire after 7 days as Skip.
 
+## Add the Claude allocator
+
+The allocator suggests your target mix from your three profile sentences. Claude proposes, code
+decides: the answer must match a JSON schema (enforced by the API), pass every guardrail, and use
+only symbols in the mix and numbers from its inputs. A failure is retried once with the errors; a
+second failure changes nothing. A small change (at most 10 points among the same funds, once a
+week) is applied on its own. Anything bigger becomes a Telegram proposal that waits for your
+Approve, and is checked again before it's applied.
+
+Claude sees only your profile sentences (wrapped as data, never as instructions), your current
+weights, the allowlist and the limits. It never sees transactions, merchants, account ids or prices.
+
+1. Get an API key from the Anthropic Console.
+2. Add an **`ai`** environment with one secret, `ANTHROPIC_API_KEY`. The `brain` job runs on
+   Sundays at 16:00 UTC, installs the `anthropic` SDK from the hash-pinned `requirements-ai.txt`,
+   and holds no other key, so it can't reach your bank or broker.
+3. Optional: onboard with `ANTHROPIC_API_KEY` set (after `pip install --require-hashes --no-deps -r
+   requirements-ai.txt`) and your first proposal comes from the allocator too. Without it you get a
+   plain starter mix.
+
+Every call is logged in `state/telemetry.jsonl` with tokens, cost, latency, model and prompt
+version. `ai_monthly_budget` in `config.toml` (default $2.00) stops the review for the rest of the
+month once it would be passed; buying carries on. Expect about $0.05 a week on Claude Opus 5.5.
+
 ## Run it on GitHub Actions
 
 In **your private copy**:
@@ -164,7 +189,7 @@ hold your ledger and holdings.
 | 3 | Teller (Chase) adapter and enrollment | done |
 | 4 | `invest` workflow and state branch | done |
 | 5 | Telegram bot and onboarding | done |
-| 6 | AI allocator and model-agnostic LLM adapter | |
+| 6 | AI allocator and model-agnostic LLM adapter | done |
 | 7 | Weekly update and merchant categorizer | |
 | 8 | Evals: guardrail compliance, profile fit, stability, prompt injection, cost | |
 | 9 | Two-week paper-trading run | |
