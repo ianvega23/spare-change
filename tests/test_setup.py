@@ -94,7 +94,7 @@ class SetupTests(TempDirCase):
     def test_full_setup_teller_alpaca(self):
         gh = FakeGh()
         code, out = self.go(gh, [
-            "", "", "",                      # teller, alpaca, AI yes
+            "teller", "", "",                      # teller, alpaca, AI yes
             "y", "y", self.pem("c.pem"), "y", self.pem("k.pem"), "y", "y",   # money
             "y", "y",                        # telegram token and chat id (HMAC is generated)
             "y",                             # ai
@@ -115,7 +115,7 @@ class SetupTests(TempDirCase):
 
     def test_secrets_never_on_a_command_line_or_in_output(self):
         gh = FakeGh(existing={"money": {"TELLER_ACCESS_TOKEN", "TELLER_CERT_PEM", "TELLER_KEY_PEM"}})
-        code, out = self.go(gh, ["", "public", "n", "y", "n", "n", "y"], [SECRET_VALUE])
+        code, out = self.go(gh, ["teller", "public", "n", "y", "n", "n", "y"], [SECRET_VALUE])
         self.assertEqual(code, 0, out)
         self.assertEqual(gh.values[("money", "PUBLIC_SECRET_KEY")], SECRET_VALUE)
         for cmd, _ in gh.calls:
@@ -137,7 +137,7 @@ class SetupTests(TempDirCase):
         for s in setup.secrets_for("teller", "alpaca", True):
             names[s.env].add(s.name)
         gh = FakeGh(existing=names)
-        code, out = self.go(gh, ["", "", "", "y"])
+        code, out = self.go(gh, ["teller", "", "", "y"])
         self.assertEqual(code, 0, out)
         self.assertEqual(gh.values, {})
         self.assertEqual(gh.variables, {"SPARE_ENABLED": "true"})
@@ -146,7 +146,7 @@ class SetupTests(TempDirCase):
     def test_keeps_your_other_settings(self):
         state = State(self.dir).ensure()
         state.config_path.write_text('multiplier = 2\nbuy_day = "friday"\n')
-        self.go(FakeGh(), ["", "", "n"] + ["n"] * 7 + ["n"])
+        self.go(FakeGh(), ["teller", "", "n"] + ["n"] * 7 + ["n"])
         cfg = tomllib.loads(state.config_path.read_text())
         self.assertEqual((cfg["multiplier"], cfg["buy_day"], cfg["dry_run"]), (2, "friday", True))
 
@@ -155,7 +155,7 @@ class SetupTests(TempDirCase):
         gh.secrets = {}
         for s in setup.secrets_for("teller", "alpaca", True):
             gh.secrets.setdefault(s.env, set()).add(s.name)
-        code, out = self.go(gh, ["", "", "", "y"])
+        code, out = self.go(gh, ["teller", "", "", "y"])
         self.assertEqual(code, 0, out)
         self.assertEqual(len(gh.rulesets), 1)
         rule = gh.rulesets[0]
@@ -169,7 +169,7 @@ class SetupTests(TempDirCase):
         order = [" ".join(c) for c, _ in gh.calls]
         self.assertLess(next(i for i, c in enumerate(order) if "rulesets" in c and "POST" in c),
                         next(i for i, c in enumerate(order) if "SPARE_ENABLED" in c))
-        code, out = self.go(gh, ["", "", "", "y"])  # run again: no second ruleset
+        code, out = self.go(gh, ["teller", "", "", "y"])  # run again: no second ruleset
         self.assertEqual(len(gh.rulesets), 1)
         self.assertIn("Main branch: already protected", out)
 
@@ -178,7 +178,7 @@ class SetupTests(TempDirCase):
         for s in setup.secrets_for("teller", "alpaca", True):
             names.setdefault(s.env, set()).add(s.name)
         gh = FakeGh(existing=names, fail_on="rulesets")
-        code, out = self.go(gh, ["", "", ""])
+        code, out = self.go(gh, ["teller", "", ""])
         self.assertEqual(code, 1, out)
         self.assertEqual(gh.variables, {})
         self.assertIn("branch rules only work in public repositories", out)
@@ -189,14 +189,14 @@ class SetupTests(TempDirCase):
         self.assertIn("private copy", out)
 
     def test_no_fallback_when_environments_are_unavailable(self):
-        code, out = self.go(FakeGh(fail_on="environments/money"), ["", "", ""])
+        code, out = self.go(FakeGh(fail_on="environments/money"), ["teller", "", ""])
         self.assertEqual(code, 1)
         self.assertIn("won't fall back", out)
 
     def test_bad_pem_stops(self):
         bad = pathlib.Path(self.dir, "x.pem")
         bad.write_text("not a cert")
-        code, out = self.go(FakeGh(), ["", "", "n", "y", "y", str(bad)], [SECRET_VALUE])
+        code, out = self.go(FakeGh(), ["teller", "", "n", "y", "y", str(bad)], [SECRET_VALUE])
         self.assertEqual(code, 1)
         self.assertIn("doesn't look like a PEM", out)
 

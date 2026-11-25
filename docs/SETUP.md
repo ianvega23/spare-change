@@ -19,7 +19,7 @@ Mac, or right-click) and press Enter. Nothing appears on screen while you paste,
 |---|---|---|
 | [1](#step-1-github-pro-and-your-private-copy) | GitHub Pro and your own private copy | 5 min |
 | [2](#step-2-get-the-code-on-your-computer) | Install three tools and download your copy | 10 min |
-| [3](#step-3-create-the-accounts) | Create the accounts: Alpaca, Teller, Telegram, Anthropic | 15 min |
+| [3](#step-3-create-the-accounts) | Create the accounts: Alpaca, Plaid, Telegram, Anthropic | 15 min |
 | [4](#step-4-run-the-setup-command) | Run `spare setup` | 5 min |
 | [5](#step-5-tell-it-about-yourself-over-telegram) | Tell it about yourself over Telegram | 5 min |
 | [6](#step-6-your-first-dry-run) | Your first dry run | 5 min |
@@ -153,37 +153,43 @@ Want to check them now? This is read-only and places nothing. It asks for both k
 python -m spare alpaca-check
 ```
 
-### 3b. Teller (reads your bank's purchases)
+### 3b. Plaid (reads your bank's purchases)
 
-Teller gives Spare Change **read-only** access to your checking account's transactions. It can't
-move money.
+Plaid gives Spare Change **read-only** access to your checking account's transactions. It can't
+move money. Plaid's free **Trial plan** is for personal use: real bank data, up to 10 bank
+connections, and it includes Chase and most other US banks.
 
-1. Sign up at <https://teller.io> and open the **Dashboard**.
-2. Copy your **Application ID** (it starts with `app_`).
-3. In **Certificates**, create a certificate and download it. You get two files,
-   `certificate.pem` and `private_key.pem` (unzip them if they arrive as a zip). Make a folder called
-   `teller` inside your `spare-change-private` folder and move both files into it. That folder is
-   never committed. On Windows you can do this in File Explorer; `spare-change-private` is in your
-   user folder, for example `C:\Users\you\spare-change-private`.
-4. Link your bank. This opens a page in your browser, on your own computer only:
+1. Go to <https://dashboard.plaid.com/signup> and choose **Personal use**.
+2. Verify your email and finish the identity check. Most people are approved right away; if Plaid
+   needs to look closer, it emails you within 2 to 3 business days.
+3. If the Trial plan isn't on yet, request it at <https://dashboard.plaid.com/trial-plan>.
+4. In the dashboard, find your API keys (usually under **Developers → Keys**). You need the
+   **client_id** and the **Production** secret. The Trial plan's real connections live in
+   Production, not Sandbox.
+5. Link your bank. This opens a page in your browser, on your own computer only. It asks for the
+   client_id and secret first:
 
    ```bash
-   python -m spare enroll --app-id app_YOUR_ID
+   python -m spare enroll
    ```
 
-   Pick your bank, sign in the way you normally do, and choose your checking account. When the page
-   says it's done, the access token is saved in `teller/token.txt`.
-5. Check that purchases are read the right way round:
+   Click **Open Plaid**, pick your bank, sign in the way you normally do, and choose your checking
+   account. When the page says it's done, the access token is saved in `plaid/token.txt`. That
+   folder is never committed.
+6. Check that your purchases come through:
 
    ```bash
    python -m spare bank-check
    ```
 
-   It finds the token and both files in the `teller` folder by itself. It lists the last 14 days. Your card purchases should say **purchase**, and paychecks or
-   refunds should say **money in**. If they're backwards, see
-   [Troubleshooting](#troubleshooting).
+   It uses the token in the `plaid` folder by itself and asks for the client_id and secret again.
+   It lists the last 14 days. Your card purchases should say **purchase**, and paychecks or refunds
+   should say **money in**.
 
-Teller doesn't support your bank? Spare Change also works with Plaid; choose `plaid` in step 4.
+> **Why not Teller?** Earlier versions of this guide used Teller. Teller no longer offers a public
+> sign-up page, so new users can't get an account. If you already have a Teller developer account,
+> it still works: run `python -m spare enroll --app-id app_YOUR_ID` with your certificate and key in
+> a `teller` folder, and choose `teller` in step 4.
 
 ### 3c. Telegram (where you approve changes and get the Sunday update)
 
@@ -221,12 +227,11 @@ It checks that your copy is private, then asks:
 
 | Question | What to answer |
 |---|---|
-| Bank link | Press Enter for `teller` (or type `plaid`) |
+| Bank link | Press Enter for `plaid` |
 | Broker | Press Enter for `alpaca` |
 | Use Claude? | `y` if you did step 3d, otherwise `n` |
-| Set TELLER_ACCESS_TOKEN now? / Use the token saved in teller/token.txt? | `y`, then Enter |
-| Path to your Teller certificate.pem | Press Enter (it uses `teller/certificate.pem`) |
-| Path to your Teller private_key.pem | Press Enter (it uses `teller/private_key.pem`) |
+| Plaid client id / Production secret | Paste each from step 3b |
+| Set PLAID_ACCESS_TOKEN now? / Use the token saved in plaid/token.txt? | `y`, then Enter |
 | Alpaca PAPER key id / secret | Paste each from step 3a |
 | Telegram bot token / chat id | Paste each from step 3c |
 | Anthropic API key | Paste it from step 3d |
@@ -324,8 +329,9 @@ locked until the two-week paper checklist (`spare doctor --go-live`) has passed.
 | Windows: pasting into a hidden prompt does nothing | Right-click in the window to paste, then press Enter. |
 | `git worktree add --orphan` says unknown option | Your Git is older than 2.42. Update it (step 2; on Windows, `winget upgrade Git.Git`). |
 | `No module named spare` | Run the command from inside your `spare-change-private` folder, not from `state/` or elsewhere. |
-| `bank-check` shows purchases as **money in** | Your bank signs amounts the other way. Add `teller_spending_sign = "positive"` to `state/config.toml`, then run `bank-check` again. |
-| Teller asks to re-link later (password change, new MFA) | Run `python -m spare enroll --app-id app_YOUR_ID --relink ENROLLMENT_ID`, using the id in `teller/enrollment.json`, then `python -m spare setup --replace` to store the new token. |
+| Plaid says INVALID_API_KEYS | Use the **Production** secret, not the Sandbox one, and check the client_id. |
+| The bank needs re-linking later (password change, new MFA) | Your bot tells you. Run `python -m spare enroll --relink`. It keeps the same token, so nothing else changes. |
+| Teller users: `bank-check` shows purchases as **money in** | Add `teller_spending_sign = "positive"` to `state/config.toml`, then run `bank-check` again. |
 | `telegram-chat-id` prints "none yet" | Send your bot a message first, then run it again. |
 | The bot never sends anything | Check **Actions → bot** for a red run. The most common cause is a wrong chat id; run `python -m spare setup --replace` to fix it. |
 | `spare doctor` on your computer says secrets are missing | That's expected. Your keys are on GitHub, not on your computer. `doctor` checks the keys of the terminal you run it in. |

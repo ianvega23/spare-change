@@ -35,6 +35,14 @@ def fill(wanted: list[tuple[str, str, bool]], environ: MutableMapping[str, str] 
         environ[name] = value.strip()
 
 
+def plaid_defaults(folder: str | Path = "plaid", environ: MutableMapping[str, str] | None = None) -> None:
+    """Use the access token `spare enroll --bank plaid` saved in plaid/, if it's there."""
+    environ = os.environ if environ is None else environ
+    path = Path(folder) / "token.txt"
+    if not environ.get("PLAID_ACCESS_TOKEN") and path.is_file():
+        environ["PLAID_ACCESS_TOKEN"] = path.read_text(encoding="utf-8").strip()
+
+
 def teller_defaults(folder: str | Path = "teller", environ: MutableMapping[str, str] | None = None) -> None:
     """Use the files `spare enroll` and the Teller dashboard left in teller/, if they're there."""
     environ = os.environ if environ is None else environ

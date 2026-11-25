@@ -58,21 +58,27 @@ def render_page(app_id: str, environment: str, nonce: str, enrollment_id: str | 
                        enrollment=f"enrollmentId: {js(enrollment_id)}," if enrollment_id else "")
 
 
-def save_token(directory: Path, payload: dict) -> Path:
-    token = payload.get("accessToken")
-    if not isinstance(token, str) or not token or len(token) > 200 or any(c.isspace() for c in token):
-        raise ValueError("that doesn't look like a Teller access token")
+def write_private(directory: Path, token: str) -> Path:
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = directory / "token.txt"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(token + "\n")
+    return path
+
+
+def save_token(directory: Path, payload: dict) -> Path:
+    token = payload.get("accessToken")
+    if not isinstance(token, str) or not token or len(token) > 200 or any(c.isspace() for c in token):
+        raise ValueError("that doesn't look like a Teller access token")
+    path = write_private(directory, token)
     meta = {k: payload.get(k) for k in ("enrollmentId", "institution")}
     (directory / "enrollment.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     return path
 
 
-def make_handler(page: str, nonce: str, directory: Path, done: threading.Event, out=print):
+def make_handler(page: str, nonce: str, directory: Path, done: threading.Event, out=print,
+                 save=save_token, label: str = "Teller"):
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *args):  # keep tokens and paths out of the terminal log
             pass
@@ -103,22 +109,21 @@ def make_handler(page: str, nonce: str, directory: Path, done: threading.Event, 
                 return self._send(403, b"forbidden")
             try:
                 length = min(int(self.headers.get("Content-Length", "0")), 10_000)
-                path = save_token(directory, json.loads(self.rfile.read(length)))
+                path = save(directory, json.loads(self.rfile.read(length)))
             except (ValueError, json.JSONDecodeError) as e:
                 out(f"Couldn't save the token: {html.escape(str(e))}")
                 return self._send(400, b"bad token")
-            out(f"Saved your Teller access token to {path} (only you can read it).")
+            out(f"Saved your {label} access token to {path} (only you can read it).")
             done.set()  # before replying, so whoever sees the 200 can rely on it
             self._send(200, b"ok")
     return Handler
 
 
-def run(app_id: str, environment: str = "development", directory: str = "teller",
-        enrollment_id: str | None = None, port: int = 0, open_browser: bool = True) -> int:
-    nonce = secrets.token_urlsafe(24)
+def serve(page: str, nonce: str, directory: Path, *, save=save_token, label: str = "Teller",
+          port: int = 0, open_browser: bool = True) -> int:
+    """Serve the linking page on 127.0.0.1 until the token is saved (or Ctrl+C)."""
     done = threading.Event()
-    handler = make_handler(render_page(app_id, environment, nonce, enrollment_id), nonce,
-                           Path(directory), done)
+    handler = make_handler(page, nonce, directory, done, save=save, label=label)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -132,6 +137,16 @@ def run(app_id: str, environment: str = "development", directory: str = "teller"
         return 1
     finally:
         server.shutdown()
+    return 0
+
+
+def run(app_id: str, environment: str = "development", directory: str = "teller",
+        enrollment_id: str | None = None, port: int = 0, open_browser: bool = True) -> int:
+    nonce = secrets.token_urlsafe(24)
+    code = serve(render_page(app_id, environment, nonce, enrollment_id), nonce, Path(directory),
+                 port=port, open_browser=open_browser)
+    if code:
+        return code
     print("Next: add it as the TELLER_ACCESS_TOKEN secret in your repo's `money` environment, e.g.\n"
           f"  gh secret set TELLER_ACCESS_TOKEN --env money < {Path(directory) / 'token.txt'}")
     return 0

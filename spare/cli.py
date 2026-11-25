@@ -89,10 +89,13 @@ def first_mix(state_dir: str, environ=None, out=print):
 
 
 def cfg_bank(path: str) -> str:
+    """The bank in your config; with no config yet, whichever bank you've linked."""
     try:
-        return config_mod.load(path).bank if os.path.exists(path) else "teller"
+        if os.path.exists(path):
+            return config_mod.load(path).bank
     except config_mod.ConfigError:
-        return "teller"
+        pass
+    return "teller" if os.path.exists(os.path.join("teller", "token.txt")) else "plaid"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -121,11 +124,16 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("doctor", help="check the setup without touching money")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p.add_argument("--go-live", action="store_true", help="run the paper go-live checklist (phase 9)")
-    p = sub.add_parser("enroll", help="link your bank with Teller Connect (runs on your computer)")
-    p.add_argument("--app-id", default=os.environ.get("TELLER_APPLICATION_ID", ""))
-    p.add_argument("--environment", default="development", choices=("sandbox", "development", "production"))
-    p.add_argument("--relink", default=None, metavar="ENROLLMENT_ID", help="repair an existing link")
-    p.add_argument("--dir", default="teller", help="where to save the token (git-ignored)")
+    p = sub.add_parser("enroll", help="link your bank with Plaid Link or Teller Connect (runs on your computer)")
+    p.add_argument("--bank", choices=("plaid", "teller"), default=None,
+                   help="plaid (default) or teller (default when --app-id is given)")
+    p.add_argument("--app-id", default=os.environ.get("TELLER_APPLICATION_ID", ""), help="Teller only")
+    p.add_argument("--environment", default=None, choices=("sandbox", "development", "production"),
+                   help="Plaid: production (default, the free Trial plan) or sandbox; "
+                        "Teller: development (default), sandbox or production")
+    p.add_argument("--relink", nargs="?", const="yes", default=None, metavar="ENROLLMENT_ID",
+                   help="repair an existing link (Teller: pass the enrollment id)")
+    p.add_argument("--dir", default=None, help="where to save the token (default plaid/ or teller/, git-ignored)")
     p = sub.add_parser("bank-check", help="read-only look at your linked bank account")
     p.add_argument("--config", default=os.path.join("state", "config.toml"))
     sub.add_parser("alpaca-check", help="read-only check of your Alpaca paper account")
@@ -204,22 +212,40 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return jobs.doctor(args.state)
     if args.command == "enroll":
+        bank = args.bank or ("teller" if args.app_id else "plaid")
+        if bank == "plaid":
+            from . import enroll_plaid
+            from .askenv import fill
+            env = args.environment or "production"
+            if env == "development":
+                parser.error("Plaid has sandbox and production only (the Trial plan is production)")
+            fill([("PLAID_CLIENT_ID", "Plaid client id", False),
+                  ("PLAID_SECRET", f"Plaid {env} secret", True)])
+            if not (os.environ.get("PLAID_CLIENT_ID") and os.environ.get("PLAID_SECRET")):
+                parser.error("run this in a terminal, or set PLAID_CLIENT_ID and PLAID_SECRET")
+            return enroll_plaid.run(os.environ["PLAID_CLIENT_ID"], os.environ["PLAID_SECRET"],
+                                    environment=env, directory=args.dir or "plaid",
+                                    relink=bool(args.relink))
         if not args.app_id:
             parser.error("pass --app-id or set TELLER_APPLICATION_ID (from your Teller dashboard)")
+        if args.relink == "yes":
+            parser.error("Teller needs the enrollment id: --relink enr_... (see teller/enrollment.json)")
         from . import enroll
-        return enroll.run(args.app_id, args.environment, args.dir, args.relink)
+        return enroll.run(args.app_id, args.environment or "development", args.dir or "teller", args.relink)
     if args.command == "bank-check":
         from . import bank_tools
         from .core.bank import BankError
         from .core.sources import bank_from_env
-        from .askenv import fill, teller_defaults
+        from .askenv import fill, plaid_defaults, teller_defaults
         if cfg_bank(args.config) == "plaid":
+            plaid_defaults()
             fill([("PLAID_CLIENT_ID", "Plaid client id", False), ("PLAID_SECRET", "Plaid secret", True),
                   ("PLAID_ACCESS_TOKEN", "Plaid access token", True)])
         else:
             teller_defaults()
             fill([("TELLER_ACCESS_TOKEN", "Teller access token (teller/token.txt)", True)])
-        cfg = config_mod.load(args.config) if os.path.exists(args.config) else config_mod.from_dict({})
+        cfg = (config_mod.load(args.config) if os.path.exists(args.config)
+               else config_mod.from_dict({"bank": cfg_bank(args.config)}))
         try:
             return bank_tools.bank_check(bank_from_env(cfg))
         except BankError as e:

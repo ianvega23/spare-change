@@ -41,8 +41,8 @@ BANK_SECRETS = {
                Secret("TELLER_CERT_PEM", "money", "Path to your Teller certificate.pem", "file"),
                Secret("TELLER_KEY_PEM", "money", "Path to your Teller private_key.pem", "file")],
     "plaid": [Secret("PLAID_CLIENT_ID", "money", "Plaid client id"),
-              Secret("PLAID_SECRET", "money", "Plaid secret"),
-              Secret("PLAID_ACCESS_TOKEN", "money", "Plaid access token for your checking account")],
+              Secret("PLAID_SECRET", "money", "Plaid Production secret"),
+              Secret("PLAID_ACCESS_TOKEN", "money", "Plaid access token (from `spare enroll`)")],
 }
 BROKER_SECRETS = {
     "alpaca": [Secret("APCA_API_KEY_ID", "money", "Alpaca PAPER key id (starts with PK)"),
@@ -152,7 +152,8 @@ class GitHub:
 
 
 # Files that `spare enroll` and the Teller dashboard leave in teller/, offered as defaults.
-DEFAULT_FILES = {"TELLER_ACCESS_TOKEN": Path("teller", "token.txt"),
+DEFAULT_FILES = {"PLAID_ACCESS_TOKEN": Path("plaid", "token.txt"),
+                 "TELLER_ACCESS_TOKEN": Path("teller", "token.txt"),
                  "TELLER_CERT_PEM": Path("teller", "certificate.pem"),
                  "TELLER_KEY_PEM": Path("teller", "private_key.pem")}
 
@@ -218,7 +219,7 @@ def run(state_dir: str, *, ask: Ask = input, ask_secret: Ask = getpass.getpass,
         return 1
     out(f"Repository: {gh.repo} (private)\n")
 
-    bank = choose(ask, "Bank link", ("teller", "plaid"), "teller")
+    bank = choose(ask, "Bank link", ("plaid", "teller"), "plaid")
     broker = choose(ask, "Broker", ("alpaca", "public"), "alpaca")
     if broker == "public":
         out("  Public has no paper account, so every Public order is real money. You'll run dry for two\n"
@@ -267,8 +268,9 @@ def run(state_dir: str, *, ask: Ask = input, ask_secret: Ask = getpass.getpass,
 
     out("\nNext:")
     steps = []
-    if bank == "teller":
-        steps.append("Link your bank: python -m spare enroll (then run setup again to store the token)")
+    if not DEFAULT_FILES[f"{bank.upper()}_ACCESS_TOKEN"].is_file():
+        how = "python -m spare enroll" + (" --app-id app_..." if bank == "teller" else "")
+        steps.append(f"Link your bank: {how} (then run setup again to store the token)")
     steps.append("Onboard over Telegram: python -m spare onboard (your goals, multiplier, buy day, cap)")
     steps.append("Check everything: python -m spare doctor")
     steps.append("Run Actions > invest > Run workflow once and read the result with python -m spare status")
