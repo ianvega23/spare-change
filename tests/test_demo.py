@@ -23,4 +23,4 @@ class DemoTests(TempDirCase):
 
     def test_cli_entry_point(self):
         self.assertEqual(main(["demo", "--weeks", "2", "--ledger", os.path.join(self.dir, "l.jsonl")]), 0)
-        self.assertEqual(main(["eval"]), 2)
+        self.assertEqual(main(["doctor", "--go-live", "--state", self.dir]), 2)

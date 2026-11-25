@@ -1,0 +1,8 @@
+{
+  "offline": {
+    "injection_safe_rate": 1.0,
+    "post_guard_valid_rate": 1.0,
+    "profile_fit_rate": 1.0,
+    "raw_guard_pass_rate": 1.0
+  }
+}

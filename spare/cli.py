@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import tempfile
 from datetime import date, timedelta
 
@@ -14,7 +15,7 @@ from .fake import FakeBank, FakeBroker
 # An example allocation for the demo only. Not advice.
 DEMO_TARGETS = {"VTI": 0.35, "VXUS": 0.20, "BND": 0.20, "SGOV": 0.15, "VNQ": 0.10}
 DEMO_PRICES = {"VTI": 31_000, "VXUS": 6_800, "BND": 7_300, "SGOV": 10_050, "VNQ": 9_100}
-LATER = {"eval": 8}
+LATER: dict[str, int] = {}
 
 
 def usd(cents: int) -> str:
@@ -124,8 +125,13 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("paper-order", help="place one small Alpaca paper buy and reconcile it")
     p.add_argument("--symbol", default="VTI")
     p.add_argument("--dollars", type=int, default=5)
+    sub.add_parser("eval", help="allocator evals: offline by default, --live for the real model")
     for name in LATER:
         sub.add_parser(name, help=f"coming in phase {LATER[name]}")
+    raw = sys.argv[1:] if argv is None else argv
+    if raw[:1] == ["eval"]:  # its own flags, parsed by spare.brain.evals
+        from .brain import evals
+        return evals.main(raw[1:], os.environ)
     args = parser.parse_args(argv)
 
     if args.command == "demo":
