@@ -14,7 +14,7 @@ from .fake import FakeBank, FakeBroker
 # An example allocation for the demo only. Not advice.
 DEMO_TARGETS = {"VTI": 0.35, "VXUS": 0.20, "BND": 0.20, "SGOV": 0.15, "VNQ": 0.10}
 DEMO_PRICES = {"VTI": 31_000, "VXUS": 6_800, "BND": 7_300, "SGOV": 10_050, "VNQ": 9_100}
-LATER = {"onboard": 5, "brain": 6, "bot": 5, "eval": 8}
+LATER = {"brain": 6, "eval": 8}
 
 
 def usd(cents: int) -> str:
@@ -73,6 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--buy-day", default="monday", help="weekday to invest the week's round-ups")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--ledger", default=None, help="ledger path (default: a temp file)")
+    p = sub.add_parser("onboard", help="the one-time setup conversation over Telegram (on your computer)")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    p = sub.add_parser("bot", help="one pass of the hourly bot job: send, offer proposals, handle taps")
+    p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
+    sub.add_parser("telegram-chat-id", help="print the chat id of whoever just messaged your bot")
     p = sub.add_parser("invest", help="one run of the money path (what the weekday job runs)")
     p.add_argument("--state", default=os.environ.get("SPARE_STATE_DIR", "state"))
     p.add_argument("--date", default=None, help="pretend today is this ISO date (testing)")
@@ -101,6 +106,41 @@ def main(argv: list[str] | None = None) -> int:
             demo(args.weeks, args.multiplier, args.buy_day, args.seed, args.ledger)
         except config_mod.ConfigError as e:
             parser.error(str(e))
+        return 0
+    if args.command in ("onboard", "bot", "telegram-chat-id"):
+        from .bot import telegram as tg
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        if not token:
+            parser.error("set TELEGRAM_BOT_TOKEN (from BotFather)")
+        client = tg.Telegram(token)
+        if args.command == "telegram-chat-id":
+            chats = {tg.chat_of(u) for u in client.updates(None)} - {None}
+            print("Chat ids that messaged your bot: " + (", ".join(map(str, chats)) or
+                  "none yet. Send your bot any message, then run this again."))
+            return 0
+        chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+        if not chat.lstrip("-").isdigit():
+            parser.error("set TELEGRAM_CHAT_ID (see `spare telegram-chat-id`)")
+        if args.command == "onboard":
+            from .bot import onboard
+            from .brain import starter
+            onboard.run(args.state, onboard.TelegramAsk(client, int(chat)), starter.propose)
+            print("Your first proposal reaches Telegram on the next bot run (hourly), or now with "
+                  "`python -m spare bot` if TELEGRAM_HMAC_KEY is set here too. Push the state "
+                  "folder to your state branch so the jobs see it.")
+            return 0
+        key = os.environ.get("TELEGRAM_HMAC_KEY", "")
+        if len(key) < 32:
+            parser.error("set TELEGRAM_HMAC_KEY to a random secret of 32+ characters")
+        from . import jobs
+        from .bot import relay
+        def status_text():
+            lines = []
+            jobs.status(args.state, out=lines.append)
+            return "\n".join(lines)
+        r = relay.run_once(args.state, client, int(chat), key.encode(), status_text=status_text)
+        print(f"Sent {r.sent}, offered {r.proposals_offered} proposal(s), decisions {r.decisions or 'none'}, "
+              f"commands {r.commands or 'none'}, ignored {r.ignored_other_chats} message(s) from other chats.")
         return 0
     if args.command in ("invest", "status", "doctor"):
         from . import jobs

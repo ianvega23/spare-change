@@ -1,0 +1,69 @@
+name: bot
+
+# Every hour from 13:00 to 03:00 UTC: send queued messages, offer proposals with Approve/Skip,
+# and record your taps and commands. Holds only the Telegram secrets, so it can't move money.
+# Off until you opt in by setting the repository variable SPARE_ENABLED to "true".
+on:
+  schedule:
+    - cron: "0 0-3,13-23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # only to commit decisions to the state branch
+
+concurrency:
+  group: bot
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    if: vars.SPARE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: telegram   # Telegram token, chat id and button-signing key live only here
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: main
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Check out the state branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin state >/dev/null; then
+            git fetch --depth 1 origin state
+            git worktree add state FETCH_HEAD
+            git -C state switch -c state
+          else
+            echo "No state branch yet: the invest job creates it on its first run."
+            exit 0
+          fi
+
+      - name: Relay
+        if: hashFiles('state/**') != ''
+        env:
+          SPARE_STATE_DIR: state
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_HMAC_KEY: ${{ secrets.TELEGRAM_HMAC_KEY }}
+        run: python -m spare bot
+
+      - name: Commit decisions to the state branch
+        if: always() && hashFiles('state/**') != ''
+        run: |
+          cd state
+          for f in targets.json flags.json bot.json decisions.jsonl proposals outbox; do
+            if [ -e "$f" ] || git ls-files --error-unmatch "$f" >/dev/null 2>&1; then git add -A -- "$f"; fi
+          done
+          if git diff --cached --quiet; then
+            echo "Nothing new to record."
+          else
+            git commit -q -m "bot run $(date -u +%Y-%m-%dT%H:%M)"
+            for attempt in 1 2 3; do  # the invest job may have pushed in between
+              git push origin state && break
+              git pull --rebase origin state
+            done
+          fi
