@@ -237,6 +237,34 @@ class EnrollTests(unittest.TestCase):
             finally:
                 server.shutdown()
 
+    def test_server_ignores_requests_for_other_hosts(self):
+        """DNS rebinding: a page on evil.example pointed at 127.0.0.1 still sends Host: evil.example."""
+        import http.server
+        with tempfile.TemporaryDirectory() as d:
+            done = threading.Event()
+            handler = enroll.make_handler("<html>nonce</html>", "right", pathlib.Path(d), done, out=lambda *_: None)
+            server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            port = server.server_address[1]
+            base = f"http://127.0.0.1:{port}"
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            def status(req):
+                try:
+                    return opener.open(req, timeout=5).status
+                except urllib.error.HTTPError as e:
+                    return e.code
+            try:
+                evil = {"Host": f"evil.example:{port}"}
+                self.assertEqual(status(urllib.request.Request(base + "/", headers=evil)), 403)
+                req = urllib.request.Request(base + "/token", json.dumps({"accessToken": TOKEN}).encode(),
+                                             {**evil, "Content-Type": "application/json", "X-Spare-Nonce": "right"})
+                self.assertEqual(status(req), 403)
+                self.assertFalse(done.is_set())
+                local = {"Host": f"localhost:{port}"}
+                self.assertEqual(status(urllib.request.Request(base + "/", headers=local)), 200)
+            finally:
+                server.shutdown()
+
 
 if __name__ == "__main__":
     unittest.main()

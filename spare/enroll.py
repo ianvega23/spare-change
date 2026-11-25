@@ -85,13 +85,21 @@ def make_handler(page: str, nonce: str, directory: Path, done: threading.Event, 
             self.end_headers()
             self.wfile.write(body)
 
+        def _for_us(self) -> bool:
+            """Only requests addressed to this server. A web page that points its own domain at
+            127.0.0.1 (DNS rebinding) still sends its own name as Host, so it gets nothing."""
+            port = self.server.server_address[1]
+            return self.headers.get("Host", "") in (f"127.0.0.1:{port}", f"localhost:{port}")
+
         def do_GET(self):
+            if not self._for_us():
+                return self._send(403, b"forbidden")
             if self.path != "/":
                 return self._send(404, b"not found")
             self._send(200, page.encode(), "text/html; charset=utf-8")
 
         def do_POST(self):
-            if self.path != "/token" or self.headers.get("X-Spare-Nonce") != nonce:
+            if not self._for_us() or self.path != "/token" or self.headers.get("X-Spare-Nonce") != nonce:
                 return self._send(403, b"forbidden")
             try:
                 length = min(int(self.headers.get("Content-Length", "0")), 10_000)
