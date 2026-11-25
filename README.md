@@ -1,8 +1,8 @@
 # Spare Change
 
 A free, open-source, self-hosted round-up investor. It rounds each card purchase up to the
-next dollar, saves the spare change, and when the pot reaches $50 it buys fractional shares
-of a diversified portfolio in your own brokerage account. An AI allocator suggests the mix from
+next dollar, saves the spare change, and once a week it invests that week's total in fractional
+shares of a diversified portfolio in your own brokerage account. An AI allocator suggests the mix from
 the goals you describe in your own words, and plain code decides whether that suggestion is allowed.
 
 It is built for developers who are comfortable with API keys and GitHub secrets. There is no
@@ -33,7 +33,7 @@ and never sees your transactions when it picks an allocation.
   | Big change (needs your Approve in Telegram) | adding or removing a holding, or a bigger shift |
   | Selling | blocked in v1; rebalancing uses new money only |
   | Monthly cap | $200 invested per calendar month |
-  | Buy trigger | $50 pot (allowed range $10 to $500) |
+  | When to buy | once a week, on your chosen weekday, whatever the amount (under $1 carries over) |
   | Round-up multiplier | 1x, 2x or 3x |
 
   Your config can tighten these limits but can't loosen them.
@@ -56,7 +56,7 @@ python -m unittest discover -s tests    # the test suite, offline, a few seconds
 ```
 
 The demo shows each weekday run: round-ups going into the pot, and a split buy across the
-example portfolio each time the pot passes $50.
+example portfolio every Monday.
 
 ## Use your own copy privately
 

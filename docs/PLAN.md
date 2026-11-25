@@ -14,7 +14,7 @@
 |---|---|
 | Audience | (1) A free, open-source Acorns alternative anyone can self-host. Setup is honestly **developer-level** (API keys, certificates, GitHub secrets). (2) An AI engineering portfolio piece. |
 | Money in | Round-ups only, with an optional user-set multiplier (1x, 2x, 3x). |
-| When to buy | When the round-up pot reaches **$50**, not on a fixed day. |
+| When to buy | **Once a week**: the week's summed round-ups are invested on a set weekday (Monday by default), whatever the amount. |
 | Hosting | GitHub Actions, free tier, private repo. Local cron as an alternative. |
 | Bank | Chase via **Teller** (read-only). Plaid as a fallback adapter. |
 | Broker | **Alpaca**. Public as the backup adapter. |
@@ -46,8 +46,9 @@ Change `MAX_ETF_WEIGHT` in §6 if you want a different number.
    locally. It asks three questions (goals, risk, horizon), confirms the multiplier and caps, and
    saves a `profile.toml`. Claude proposes a first allocation; you tap **Approve** in Telegram.
 2. **Every weekday (GitHub Actions):** read new posted Chase purchases through Teller, round each one up,
-   apply the multiplier, add to the **pot**. If the pot is at least $50 and the market is open, split it
-   across the approved target allocation and buy fractional shares in Alpaca.
+   apply the multiplier, add to the **pot**. **Once a week** (on `BUY_DAY`, Monday by default, or the next
+   open weekday that week if it's a market holiday), split the whole pot across the approved target
+   allocation and buy fractional shares in Alpaca, whatever the amount. A pot under $1 carries over.
 3. **Every week:** Claude reviews the allocation against your profile and current holdings.
    Small changes are applied automatically and reported. Big changes arrive as an Approve/Skip message.
    You also get a short weekly summary: round-ups, pot, buys, holdings, and how the portfolio compares
@@ -102,14 +103,14 @@ spare-change/
 ├── PLAN.md  REVIEW.md  CLAUDE.md  LICENSE (MIT)  DISCLAIMER.md  PRIVACY.md
 ├── docs/design.md          # the design write-up (goals, threat model, trade-offs, what I left out)
 ├── docs/adr/               # short decision records
-├── config.example.toml     # caps, multiplier, trigger, allowlist toggle
+├── config.example.toml     # caps, multiplier, buy day, allowlist toggle
 ├── allowlist/etfs.toml     # ~15 ETFs with asset class, expense ratio, one-line description
 ├── allowlist/sp500.csv     # constituents, used only if stocks are opted in
 ├── requirements-ai.txt     # hash-pinned; only the brain job installs it
 ├── spare/
 │   ├── core/               # stdlib only. The money path.
 │   │   ├── bank.py  bank_teller.py  bank_plaid.py
-│   │   ├── engine.py       # round-ups, multiplier, pot, trigger, order split
+│   │   ├── engine.py       # round-ups, multiplier, pot, weekly buy day, order split
 │   │   ├── guard.py        # every guardrail. Pure functions. Used by brain AND invest.
 │   │   ├── broker.py  broker_alpaca.py  broker_public.py
 │   │   ├── ledger.py       # append-only JSONL, lots, reconciliation
@@ -150,7 +151,8 @@ Run order:
 3. **Fetch** the last 14 days of transactions from Teller. Keep posted debits only. Skip ids in the ledger.
 4. **Round up** each purchase in integer cents (`$4.25 → 75¢`, `$5.00 → 0¢`), times the multiplier.
    Append each to the ledger as `roundup` events. The pot is the sum of round-ups minus invested amounts.
-5. **Trigger:** if `pot < BUY_TRIGGER` ($50 default) → stop. If the market is closed → stop (next run retries).
+5. **Weekly buy:** if today is before `BUY_DAY` (Monday default), a weekend, or this week already had a buy → stop.
+   If the market is closed → stop (the next weekday run that week retries). The whole pot is bought; under $1 carries over.
 6. **Caps:** clamp the buy to `MONTHLY_CAP` minus what's been invested this month. The rest stays in the pot.
 7. **Cash check:** if Alpaca cash is less than the buy → alert "top up Alpaca", stop, pot untouched.
 8. **Split** the buy across `targets.json` (§5). Drop any slice under $1 (Alpaca's minimum notional) and
@@ -160,7 +162,7 @@ Run order:
     where `batch_id` is derived from the round-up ids in this pot. A retry makes the same ids, and Alpaca
     rejects duplicates.
 11. **Record** each fill as a `buy` event with quantity, price and date (this is the tax-lot record).
-    Commit the ledger to the `state` branch. Queue a short "bought $50.12 across 6 funds" message in `outbox/`.
+    Commit the ledger to the `state` branch. Queue a short "bought $12.40 across 6 funds" message in `outbox/`.
 
 `DRY_RUN=true` (default) stops after step 9 and prints the plan. `ALPACA_ENV=paper` is the default. Live
 needs `ALPACA_ENV=live`, `DRY_RUN=false`, live keys, **and** a `go_live.json` written by `spare doctor --go-live`
@@ -185,7 +187,7 @@ after the paper checklist in §11 passes.
 1. "What are you investing for?" → e.g. *"A house deposit, and retirement after that."*
 2. "How do you feel about risk?" → e.g. *"I can handle big drops if it's long term."*
 3. "When will you need this money?" → e.g. *"Not for 10+ years."*
-4. Confirms multiplier (1x/2x/3x), buy trigger ($50), monthly cap, whether to allow individual stocks (default **no**).
+4. Confirms multiplier (1x/2x/3x), weekly buy day (Monday), monthly cap, whether to allow individual stocks (default **no**).
 5. Writes `profile.toml` (your sentences, verbatim, plus the settings) and pushes it to the `state` branch.
 6. Runs the allocator once and sends the first proposal with **Approve / Skip**.
 
@@ -195,14 +197,14 @@ after the paper checklist in §11 passes.
   a forged callback is rejected.
 - Proposals expire after 7 days. Expired or unanswered = **Skip**. Nothing big happens by default.
 - The hourly `bot` job sends anything in `outbox/` and polls `getUpdates` for taps. A tap can take up to an
-  hour to register, which is fine: buys happen only when the pot is full.
+  hour to register, which is fine: buys happen only once a week.
 - Messages never contain account numbers or full merchant histories, only totals and fund names.
 - Commands: `/status`, `/pause` (sets the kill switch via a state flag), `/resume`, `/profile` (re-run the three questions).
 
 **Weekly update (Sunday)**, about 6 lines:
-> This week: 23 purchases, $8.41 in round-ups (2x). Pot: $37.20 of $50.
+> This week: 23 purchases, $8.41 in round-ups (2x). Invested Monday: $8.41 across 6 funds.
 > Holdings: $412 across 6 funds. Shadow all-VTI portfolio: $409.
-> No changes this week. Next buy in about 2 weeks.
+> No changes this week. Next buy Monday.
 
 ---
 
@@ -266,14 +268,14 @@ same way; a draft that fails falls back to a plain template.
 | Small change | total shift ≤ 10 points among existing holdings | Auto-applied |
 | Big change | adds/removes a holding, shifts > 10 points, or any sell | Approval required |
 | Monthly cap | $200 (`MONTHLY_CAP`) | Hard max invested per calendar month |
-| Buy trigger | $50 (`BUY_TRIGGER`) | Range $10–$500 |
+| Buy day | weekly, Monday (`BUY_DAY`) | Any weekday; the whole pot is bought, under $1 carries over |
 | Multiplier | 1x (`MULTIPLIER`) | 1, 2 or 3 only |
 | Sells | blocked in v1 | `guard` rejects any target that needs a sale |
 | Frequency | at most one auto small change per week | Stops churn |
 
 "Shift" is measured as half the sum of absolute weight differences (total variation), so moving 5 points
-from VTI to VXUS counts as 5. Because v1 never sells, a new target is reached gradually by steering each new
-$50 toward underweight holdings.
+from VTI to VXUS counts as 5. Because v1 never sells, a new target is reached gradually by steering each
+week's buy toward underweight holdings.
 
 **Default ETF allowlist (placeholder, not advice; verified as fractionable at startup):**
 US total market VTI, S&P 500 VOO, US growth VUG, US value VTV, US small cap VB, dividend SCHD,
@@ -344,9 +346,9 @@ Each phase: code and tests, full suite green, commit, PR. Fake clients make ever
 
 **Phase 1: Skeleton and money engine (no network)**
 Repo layout, `CLAUDE.md`, MIT license, `ci.yml`. Port the prototype's `round_up_cents` and integer-cents handling.
-`engine.py` (round-ups, multiplier, pot, trigger, split with $1 minimum), `ledger.py`, `guard.py` with every rule in §6,
+`engine.py` (round-ups, multiplier, pot, weekly buy day, split with $1 minimum), `ledger.py`, `guard.py` with every rule in §6,
 `config.py`, boundary tests. `python -m spare demo` runs 12 simulated weeks with fake bank and broker.
-*Done when:* guard and engine tests cover every rule; demo prints buys only when the pot passes $50.
+*Done when:* guard and engine tests cover every rule; demo buys once a week, on the buy day.
 
 **Phase 2: Alpaca adapter (paper)**
 Review and pin `alpacahq/alpaca-skills` as reference for endpoints and order fields; implement `broker_alpaca.py` with
@@ -380,13 +382,13 @@ Datasets, `run_evals.py`, `baseline.json`, `evals.yml`, CI gate, generated READM
 table and CI blocks a deliberately worse prompt.
 
 **Phase 9: Two-week paper run (calendar time, runs alongside phase 10)**
-Real Teller data, Alpaca paper, real Telegram, `BUY_TRIGGER=10` so several buys happen. Go-live checklist (`spare doctor --go-live`):
+Real Teller data, Alpaca paper, real Telegram; weekly buys give two paper buys in two weeks. Go-live checklist (`spare doctor --go-live`):
 - 10 weekday `invest` runs with no unhandled errors
 - at least 2 paper buys, each reconciled, no duplicate orders after a forced re-run
 - one small change applied and one big change approved and one skipped
 - one "cash short" alert and one Teller re-link alert tested
 - shadow portfolio and cost tracking populated
-Passing writes `go_live.json`. Then set the trigger back to $50 and switch to live keys.
+Passing writes `go_live.json`. Then switch to live keys.
 
 **Phase 10: Public adapter, docs and release**
 `broker_public.py` ($5 minimum notional, no paper mode, so it's tested with mocks only), `README.md` that opens with the safety design,
@@ -410,7 +412,7 @@ paper dry run by following the README.
 ## 12. Testing summary
 
 - `python -m unittest discover -s tests` offline, seconds. CI on every push.
-- Engine: round-up edges ($5.00 → 0, $10.01 → 99¢, credits → 0), multiplier, pot, $50 trigger, monthly cap, split with $1 floor.
+- Engine: round-up edges ($5.00 → 0, $10.01 → 99¢, credits → 0), multiplier, pot, weekly buy day (once a week, holiday roll-over), monthly cap, split with $1 floor.
 - Guard: each rule in §6 accepted at its limit and rejected just past it; small vs big classification; no-sell enforcement.
 - Idempotency: same pot twice → one set of orders; "ordered but ledger not saved" → reconciled, no repeat.
 - Boundaries: imports, stdlib-only core, secret redaction, invest re-validates targets.
@@ -429,3 +431,12 @@ paper dry run by following the README.
 
 **Out of scope:** a hosted version for other people, automated bank transfers, options, crypto, margin, and any AI that
 places orders or sees broker keys.
+
+## Phase 11 (later, not started): Hosted "bridge" app
+
+Deferred by Ian on 2026-11-24. Build only after the open-source version (phases 1-10) is done.
+
+- The app is a bridge, not a broker: users connect their own Alpaca account via Alpaca OAuth and their bank via Teller/Plaid. The app never holds money.
+- Same open-source code underneath; the hosted app is the easy option for non-technical users.
+- Open issues: AI picks for other people may count as investment advice (default to user-chosen mix with AI explaining/suggesting, or register as an adviser later); token storage needs real security work.
+- Rough cost per user per month: bank connection $0.50-$2, Claude ~$0.15, hosting $0.10-$0.50, Stripe ~$0.35 per charge. Fee of ~$2-$3/month (or ~$24/year) covers it, vs Acorns $3-$12.
