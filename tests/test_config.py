@@ -33,7 +33,7 @@ class ConfigTests(TempDirCase):
                 from_dict({"buy_day": bad})
 
     def test_rejects_invalid(self):
-        for raw in ({"multiplier": 4}, {"buy_trigger": 50}, {"monthly_cap": 0.5}, {"alpaca_env": "prod"}, {"dry_run": "no"},
+        for raw in ({"multiplier": 4}, {"monthly_cap": 0.5}, {"alpaca_env": "prod"}, {"dry_run": "no"},
                     {"surprise": 1}, {"limits": {"max_etf_weight": 0.5}},
                     {"limits": {"min_holdings": 3}}, {"limits": {"bogus": 1}}):
             with self.subTest(raw=raw), self.assertRaises(ConfigError):

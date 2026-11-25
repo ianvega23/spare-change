@@ -14,7 +14,7 @@
 |---|---|
 | Audience | (1) A free, open-source Acorns alternative anyone can self-host. Setup is honestly **developer-level** (API keys, certificates, GitHub secrets). (2) An AI engineering portfolio piece. |
 | Money in | Round-ups only, with an optional user-set multiplier (1x, 2x, 3x). |
-| When to buy | **Once a week**: the week's summed round-ups are invested on a set weekday (Monday by default), whatever the amount. Changed from the $50 pot threshold by Ian on 2026-11-25. |
+| When to buy | **Once a week**: the week's summed round-ups are invested on a set weekday (Monday by default), whatever the amount. |
 | Hosting | GitHub Actions, free tier, private repo. Local cron as an alternative. |
 | Bank | Chase via **Teller** (read-only). Plaid as a fallback adapter. |
 | Broker | **Alpaca**. Public as the backup adapter. |
